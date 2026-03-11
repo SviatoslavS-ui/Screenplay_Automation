@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Frontline.Tests.Core/Frontline.Tests.Core.csproj" />
+  <Project Path="FrontlineTests.BusinessShells/FrontlineTests.BusinessShells.csproj" />
+  <Project Path="FrontlineTests.Common/FrontlineTests.Common.csproj" />
+</Solution>
