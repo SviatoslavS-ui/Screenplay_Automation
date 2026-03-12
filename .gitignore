@@ -48,6 +48,9 @@ TestResults/
 
 # Local environment variables
 .env
+
+# Playwright browser binaries (installed locally via playwright install)
+.pw-browsers/
 .env.local
 
 # macOS

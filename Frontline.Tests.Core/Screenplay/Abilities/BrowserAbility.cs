@@ -21,13 +21,19 @@ public class BrowserAbility : IAbility
     public IPage Page => _page ?? throw new InvalidOperationException("Page not initialized. Call InitializeAsync first.");
 
     /// <summary>
-    /// Initializes the browser with Chromium (default).
+    /// Initializes the browser with Chromium.
     /// </summary>
-    public async Task InitializeAsync(BrowserTypeLaunchOptions? options = null)
+    /// <param name="launchOptions">Browser launch options (headless, args, etc.).</param>
+    /// <param name="contextOptions">Browser context options (viewport, locale, etc.).</param>
+    public async Task InitializeAsync(
+        BrowserTypeLaunchOptions? launchOptions = null,
+        BrowserNewContextOptions? contextOptions = null)
     {
         _playwright = await Playwright.CreateAsync();
-        _browser = await _playwright.Chromium.LaunchAsync(options ?? new BrowserTypeLaunchOptions { Headless = true });
-        _context = await _browser.NewContextAsync();
+        _browser = await _playwright.Chromium.LaunchAsync(
+            launchOptions ?? new BrowserTypeLaunchOptions { Headless = true });
+        _context = await _browser.NewContextAsync(
+            contextOptions ?? new BrowserNewContextOptions());
         _page = await _context.NewPageAsync();
     }
    
