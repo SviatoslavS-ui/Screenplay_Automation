@@ -5,10 +5,7 @@ using Frontline.Tests.Core.Screenplay.Infrastructure;
 
 namespace FrontlineTests.Common;
 
-/// <summary>
-/// Base class for all Screenplay-based test fixtures.
-/// Handles actor library lifecycle, browser initialization, and cleanup.
-/// </summary>
+/// <summary>Base class for all Screenplay-based test fixtures. Manages actor lifecycle, browser init, and cleanup.</summary>
 [TestFixture]
 public abstract class ScreenplayTestBase
 {
@@ -21,10 +18,7 @@ public abstract class ScreenplayTestBase
         await InitializeActorsAsync();
     }
 
-    /// <summary>
-    /// Override to customize actor setup per fixture.
-    /// Default behavior: creates a "User" actor with a browser ability.
-    /// </summary>
+    /// <summary>Override to customize actor setup; default creates a "User" actor with a browser ability.</summary>
     protected virtual async Task InitializeActorsAsync()
     {
         var browserAbility = new BrowserAbility();

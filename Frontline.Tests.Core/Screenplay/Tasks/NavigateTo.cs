@@ -2,10 +2,7 @@ using Frontline.Tests.Core.Screenplay.Core;
 
 namespace Frontline.Tests.Core.Screenplay.Tasks;
 
-/// <summary>
-/// Task to navigate to a URL.
-/// Composite task: opens a page and navigates to the specified URL.
-/// </summary>
+/// <summary>Navigates the actor's browser to the specified URL.</summary>
 public class NavigateTo(string url) : ITask
 {
     public string TaskDescription => $"Navigate to {url}";
