@@ -2,9 +2,7 @@ using Frontline.Tests.Core.Screenplay.Core;
 
 namespace Frontline.Tests.Core.Screenplay.Questions;
 
-/// <summary>
-/// Question: What is the current page title?
-/// </summary>
+/// <summary>Returns the current browser page title.</summary>
 public class PageTitle : IQuestion<string>
 {
     public async Task<string> AnswerAsync(Actor actor)

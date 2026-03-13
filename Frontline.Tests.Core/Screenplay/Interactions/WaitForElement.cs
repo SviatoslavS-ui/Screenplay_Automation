@@ -2,9 +2,7 @@ using Frontline.Tests.Core.Screenplay.Core;
 
 namespace Frontline.Tests.Core.Screenplay.Interactions;
 
-/// <summary>
-/// Atomic interaction: Wait for an element to appear on the page.
-/// </summary>
+/// <summary>Waits for an element matching the selector to be visible in the DOM.</summary>
 public class WaitForElement(string selector, int timeoutMs = 5000) : IInteraction
 {
     public string InteractionDescription => $"Wait for element '{selector}' (timeout: {timeoutMs}ms)";

@@ -2,9 +2,7 @@ using Frontline.Tests.Core.Screenplay.Core;
 
 namespace Frontline.Tests.Core.Screenplay.Interactions;
 
-/// <summary>
-/// Atomic interaction: Click an element.
-/// </summary>
+/// <summary>Clicks the target element.</summary>
 public class Click(string selector) : IInteraction
 {
     public string InteractionDescription => $"Click element '{selector}'";

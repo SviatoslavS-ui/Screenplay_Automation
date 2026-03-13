@@ -32,7 +32,6 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         Assert.That(tableIsVisible, Is.True,
             "Exceptions table should be visible after opening the module");
 
-        // TODO: remove — visual confirmation pause only
         await Task.Delay(2000);
     }
 }

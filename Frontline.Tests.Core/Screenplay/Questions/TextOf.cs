@@ -2,9 +2,7 @@ using Frontline.Tests.Core.Screenplay.Core;
 
 namespace Frontline.Tests.Core.Screenplay.Questions;
 
-/// <summary>
-/// Question: What is the text content of an element?
-/// </summary>
+/// <summary>Returns the text content of the matched element.</summary>
 public class TextOf(string selector) : IQuestion<string?>
 {
     public async Task<string?> AnswerAsync(Actor actor)

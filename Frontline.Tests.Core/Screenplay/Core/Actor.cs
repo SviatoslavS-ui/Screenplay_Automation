@@ -43,9 +43,7 @@ public class Actor
         return typedAbility;
     }
 
-    /// <summary>
-    /// Attempts to retrieve an ability without throwing if it doesn't exist.
-    /// </summary>
+    /// <summary>Returns false instead of throwing when the ability is absent or type-mismatched.</summary>
     public bool TryGetAbility<TAbility>(string abilityName, out TAbility? ability) where TAbility : IAbility
     {
         ability = default;

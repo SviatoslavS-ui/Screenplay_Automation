@@ -2,9 +2,7 @@ using Frontline.Tests.Core.Screenplay.Core;
 
 namespace Frontline.Tests.Core.Screenplay.Interactions;
 
-/// <summary>
-/// Atomic interaction: Fill a text input field.
-/// </summary>
+/// <summary>Fills a text input with the given value.</summary>
 public class Fill(string selector, string text) : IInteraction
 {
     public string InteractionDescription => $"Fill '{selector}' with '{text}'";

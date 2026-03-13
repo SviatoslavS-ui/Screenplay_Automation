@@ -1,9 +1,6 @@
 namespace Frontline.Tests.Core.Screenplay.Targets;
 
-/// <summary>
-/// UI locators for the Magazine Exceptions page.
-/// Centralized location for all selectors to minimize maintenance when UI changes.
-/// </summary>
+/// <summary>CSS selectors for the Magazine Exceptions page and navigation.</summary>
 public static class MagazineExceptionsPageTargets
 {
     // ── Navigation ────────────────────────────────────────────────────────────
@@ -11,10 +8,10 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Home page tile that launches the Magazine Exceptions app.</summary>
     public const string MagazineExceptionsAppButton = "button:has-text(\"Magazine Exceptions\")";
 
-    /// <summary>Syncfusion dropdown burger menu. Identified by the e-menu icon it contains — id is dynamic.</summary>
-    public const string BurgerMenuButton = "button.e-dropdown-btn:has(span.e-icons.e-menu)";
+    /// <summary>Syncfusion dropdown burger menu — interact via ClickAriaToggle.ToExpand("dropdownbutton").</summary>
+    public const string BurgerMenuButton = "[aria-label=\"dropdownbutton\"]";
 
-    /// <summary>Sidebar menu item that navigates to the exceptions grid.
+    /// <summary>Sidebar nav link to the exceptions grid.</summary>
     public const string MagazineExceptionsMenuItem = "a.e-menu-url[href='/MagazineExceptions']";
 
     // ── Page Elements ─────────────────────────────────────────────────────────
