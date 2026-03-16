@@ -27,4 +27,9 @@
     <Using Include="NUnit.Framework" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="TestResults\screenshots\" />
+    <Folder Include="TestResults\traces\" />
+  </ItemGroup>
+
 </Project>

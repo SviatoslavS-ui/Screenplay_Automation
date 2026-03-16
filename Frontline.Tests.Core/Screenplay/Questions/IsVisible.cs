@@ -9,7 +9,7 @@ public class IsVisible(string selector) : IQuestion<bool>
     {
         ArgumentNullException.ThrowIfNull(selector);
 
-        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>("BrowserAbility");
-        return await browserAbility.Page.IsVisibleAsync(selector);
+        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>();
+        return await browserAbility.Page.Locator(selector).IsVisibleAsync();
     }
 }

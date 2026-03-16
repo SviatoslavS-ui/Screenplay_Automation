@@ -7,7 +7,7 @@ public class PageTitle : IQuestion<string>
 {
     public async Task<string> AnswerAsync(Actor actor)
     {
-        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>("BrowserAbility");
+        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>();
         return await browserAbility.Page.TitleAsync();
     }
 }

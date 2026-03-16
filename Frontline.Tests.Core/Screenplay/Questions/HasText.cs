@@ -9,10 +9,10 @@ public class HasText(string selector, string expectedText) : IQuestion<bool>
     {
         ArgumentNullException.ThrowIfNull(selector);
         ArgumentNullException.ThrowIfNull(expectedText);
-        
-        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>("BrowserAbility");
-        var actualText = await browserAbility.Page.TextContentAsync(selector);
-        
+
+        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>();
+        var actualText = await browserAbility.Page.Locator(selector).TextContentAsync();
+
         return actualText?.Trim() == expectedText.Trim();
     }
 }

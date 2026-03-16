@@ -8,8 +8,8 @@ public class TextOf(string selector) : IQuestion<string?>
     public async Task<string?> AnswerAsync(Actor actor)
     {
         ArgumentNullException.ThrowIfNull(selector);
-        
-        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>("BrowserAbility");
-        return await browserAbility.Page.TextContentAsync(selector);
+
+        var browserAbility = actor.UsesAbility<Abilities.BrowserAbility>();
+        return await browserAbility.Page.Locator(selector).TextContentAsync();
     }
 }
