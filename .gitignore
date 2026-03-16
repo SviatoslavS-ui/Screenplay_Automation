@@ -46,9 +46,10 @@ TestResults/
 .idea/
 *.sln.iml
 
-# Claude Code — AI assistant context (local only, not for version control)
+# AI assistant context (local only, not for version control)
 CLAUDE.md
 .claude/
+.github/copilot-instructions.md
 
 # Local environment variables
 .env
