@@ -1,8 +1,6 @@
 namespace Frontline.Tests.Core.Screenplay.Core;
 
-/// <summary>
-/// Custom exception for Screenplay pattern framework errors.
-/// </summary>
+/// <summary>Thrown when actor or ability constraints are violated within the Screenplay framework.</summary>
 public class ScreenplayException : Exception
 {
     public ScreenplayException(string message) : base(message) { }

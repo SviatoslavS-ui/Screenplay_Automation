@@ -46,6 +46,11 @@ TestResults/
 .idea/
 *.sln.iml
 
+# AI assistant context (local only, not for version control)
+CLAUDE.md
+.claude/
+.github/copilot-instructions.md
+
 # Local environment variables
 .env
 
@@ -59,3 +64,5 @@ TestResults/
 # Temporary files
 *.tmp
 *.temp
+/.editorconfig
+/Frontline.Tests.Core/GlobalSuppressions.cs

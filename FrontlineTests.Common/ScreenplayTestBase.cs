@@ -1,18 +1,21 @@
 using Microsoft.Playwright;
+using NUnit.Framework.Interfaces;
 using Frontline.Tests.Core.Screenplay.Abilities;
 using Frontline.Tests.Core.Screenplay.Configuration;
 using Frontline.Tests.Core.Screenplay.Infrastructure;
 
 namespace FrontlineTests.Common;
 
-/// <summary>
-/// Base class for all Screenplay-based test fixtures.
-/// Handles actor library lifecycle, browser initialization, and cleanup.
-/// </summary>
+/// <summary>Base class for all Screenplay-based test fixtures. Manages actor lifecycle, browser init, and cleanup.</summary>
 [TestFixture]
 public abstract class ScreenplayTestBase
 {
     protected ActorLibrary ActorLibrary { get; private set; } = null!;
+
+    private readonly List<Func<Task>> _cleanupActions = [];
+
+    /// <summary>Register a cleanup action to run during TearDown (after screenshots, before browser close).</summary>
+    protected void RegisterCleanup(Func<Task> cleanupAction) => _cleanupActions.Add(cleanupAction);
 
     [SetUp]
     public virtual async Task SetUp()
@@ -21,10 +24,7 @@ public abstract class ScreenplayTestBase
         await InitializeActorsAsync();
     }
 
-    /// <summary>
-    /// Override to customize actor setup per fixture.
-    /// Default behavior: creates a "User" actor with a browser ability.
-    /// </summary>
+    /// <summary>Override to customize actor setup; default creates a "User" actor with a browser ability.</summary>
     protected virtual async Task InitializeActorsAsync()
     {
         var browserAbility = new BrowserAbility();
@@ -36,19 +36,82 @@ public abstract class ScreenplayTestBase
             },
             new BrowserNewContextOptions
             {
-                ViewportSize = AppConfiguration.StartMaximized ? ViewportSize.NoViewport : null
+                // Headless mode requires an explicit viewport — NoViewport has no effect without a display.
+                // In headed mode, NoViewport lets the OS window size dictate dimensions.
+                ViewportSize = AppConfiguration.RunHeadless
+                    ? new ViewportSize { Width = 1920, Height = 1080 }
+                    : (AppConfiguration.StartMaximized ? ViewportSize.NoViewport : null)
             });
 
-        ActorLibrary.GetActor("User").Can(browserAbility);
+        var user = ActorLibrary.GetActor("User");
+        user.Can(browserAbility);
+
+        if (AppConfiguration.SqlEnabled)
+        {
+            try
+            {
+                var dbAbility = new DatabaseAbility();
+                await dbAbility.InitializeAsync(AppConfiguration.SqlConnectionString);
+                user.Can(dbAbility);
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine($"[DatabaseAbility] Connection failed, cleanup will be skipped: {ex.Message}");
+            }
+        }
+
+        await browserAbility.Context.Tracing.StartAsync(new()
+        {
+            Screenshots = true,
+            Snapshots = true,
+            Sources = true
+        });
     }
 
     [TearDown]
     public virtual async Task TearDown()
     {
+        var outputRoot = Environment.GetEnvironmentVariable("TEST_ARTIFACTS_DIR")
+            ?? Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "TestResults");
+        var tracesDir = Path.Combine(outputRoot, "traces");
+        var screenshotsDir = Path.Combine(outputRoot, "screenshots");
+
         foreach (var actor in ActorLibrary.GetAllActors())
         {
-            if (actor.TryGetAbility<BrowserAbility>("BrowserAbility", out var browserAbility) && browserAbility != null)
+            if (actor.TryGetAbility<BrowserAbility>(out var browserAbility) && browserAbility != null)
+            {
+                Directory.CreateDirectory(tracesDir);
+                await browserAbility.Context.Tracing.StopAsync(new()
+                {
+                    Path = Path.Combine(tracesDir, $"{TestContext.CurrentContext.Test.Name}.zip")
+                });
+
+                if (TestContext.CurrentContext.Result.Outcome.Status == TestStatus.Failed)
+                {
+                    Directory.CreateDirectory(screenshotsDir);
+                    await browserAbility.Page.ScreenshotAsync(new()
+                    {
+                        Path = Path.Combine(screenshotsDir, $"{TestContext.CurrentContext.Test.Name}.png"),
+                        FullPage = true
+                    });
+                }
+
+                // Run registered cleanup actions before closing connections
+                foreach (var cleanup in _cleanupActions)
+                {
+                    try { await cleanup(); }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"[Cleanup] Warning: {ex.Message}");
+                    }
+                }
+                _cleanupActions.Clear();
+
+                if (actor.TryGetAbility<DatabaseAbility>(out var dbAbility) && dbAbility != null)
+                    await dbAbility.CloseAsync();
+
                 await browserAbility.CloseAsync();
+            }
         }
 
         ActorLibrary.Clear();

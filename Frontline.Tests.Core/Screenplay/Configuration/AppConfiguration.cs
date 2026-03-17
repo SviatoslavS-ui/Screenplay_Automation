@@ -1,20 +1,40 @@
 namespace Frontline.Tests.Core.Screenplay.Configuration;
 
-/// <summary>Application URLs and browser flags.</summary>
+/// <summary>Application URLs and browser flags. Override via environment variables for CI/environment targeting.</summary>
 public static class AppConfiguration
 {
-    /// <summary>Frontline home portal. Title: "FLGroup Apps".</summary>
-    public const string BaseUrl = "https://dotnettest.flgroup.co.uk/";
+    /// <summary>Frontline home portal. Override with FRONTLINE_BASE_URL env var.</summary>
+    public static string BaseUrl =>
+        Environment.GetEnvironmentVariable("FRONTLINE_BASE_URL")
+        ?? "https://dotnettest.flgroup.co.uk/";
 
-    /// <summary>Magazine Exceptions app root (port 10143).</summary>
-    public const string MagazineExceptionsAppUrl = "https://dotnettest.flgroup.co.uk:10143/";
+    /// <summary>Magazine Exceptions app root (port 10143). Override with FRONTLINE_MAG_EXCEPTIONS_URL env var.</summary>
+    public static string MagazineExceptionsAppUrl =>
+        Environment.GetEnvironmentVariable("FRONTLINE_MAG_EXCEPTIONS_URL")
+        ?? "https://dotnettest.flgroup.co.uk:10143/";
 
     /// <summary>Direct link to the Magazine Exceptions grid, bypasses home portal.</summary>
-    public const string MagazineExceptionsUrl = MagazineExceptionsAppUrl + "MagazineExceptions";
+    public static string MagazineExceptionsUrl => MagazineExceptionsAppUrl + "MagazineExceptions";
 
-    /// <summary>false = headed (visible browser), true = headless.</summary>
-    public const bool RunHeadless = false;
+    /// <summary>Set PLAYWRIGHT_HEADLESS=true for CI. Defaults to false (headed browser).</summary>
+    public static bool RunHeadless =>
+        bool.TryParse(Environment.GetEnvironmentVariable("PLAYWRIGHT_HEADLESS"), out var v) && v;
 
-    /// <summary>Launch browser maximized. Requires RunHeadless = false.</summary>
-    public const bool StartMaximized = true;
+    /// <summary>Maximize browser window. Automatically false in headless mode.</summary>
+    public static bool StartMaximized => !RunHeadless;
+
+    /// <summary>Set FRONTLINE_SQL_ENABLED=false to disable database cleanup. Defaults to true.</summary>
+    public static bool SqlEnabled =>
+        !bool.TryParse(Environment.GetEnvironmentVariable("FRONTLINE_SQL_ENABLED"), out var v) || v;
+
+    /// <summary>SQL Server connection string for test data management. Override with FRONTLINE_SQL_CONNECTION env var.</summary>
+    public static string SqlConnectionString =>
+        Environment.GetEnvironmentVariable("FRONTLINE_SQL_CONNECTION")
+        ?? "Server=flgsqlstdtest;Database=NAVBC160TESTP2;Integrated Security=True;TrustServerCertificate=True";
+
+    /// <summary>Dev team's render-complete signal — set in OnAfterRenderAsync.</summary>
+    public const string BlazorPageLoadedSelector = ".control-container[data-pageloaded]";
+
+    /// <summary>Base container selector used to detect SPA navigation token changes.</summary>
+    public const string BlazorPageContainerSelector = ".control-container";
 }

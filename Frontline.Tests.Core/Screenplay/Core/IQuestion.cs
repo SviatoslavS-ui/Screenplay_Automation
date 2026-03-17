@@ -1,16 +1,8 @@
 namespace Frontline.Tests.Core.Screenplay.Core;
 
-/// <summary>
-/// Represents a question that an Actor can ask to retrieve information from the application.
-/// Questions are used to verify state, retrieve data, or make assertions in a more expressive way.
-/// Example: "What is the text on the login button?" or "Is the success message visible?"
-/// </summary>
+/// <summary>Question an actor asks to read application state or verify data.</summary>
 public interface IQuestion<TAnswer>
 {
-    /// <summary>
-    /// Asks the question and retrieves the answer using the actor's abilities.
-    /// </summary>
-    /// <param name="actor">The actor performing the question.</param>
-    /// <returns>The answer to the question.</returns>
+    /// <summary>Resolves the question using the actor's abilities and returns the answer.</summary>
     Task<TAnswer> AnswerAsync(Actor actor);
 }

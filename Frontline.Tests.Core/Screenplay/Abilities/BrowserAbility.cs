@@ -3,10 +3,7 @@ using Microsoft.Playwright;
 
 namespace Frontline.Tests.Core.Screenplay.Abilities;
 
-/// <summary>
-/// Ability for an Actor to browse web applications using Playwright.
-/// This ability manages the browser, context, and page lifecycle.
-/// </summary>
+/// <summary>Playwright browser ability: manages browser, context, and page lifecycle.</summary>
 public class BrowserAbility : IAbility
 {
     private IBrowser? _browser;
@@ -20,11 +17,9 @@ public class BrowserAbility : IAbility
     public IBrowserContext Context => _context ?? throw new InvalidOperationException("Context not initialized. Call InitializeAsync first.");
     public IPage Page => _page ?? throw new InvalidOperationException("Page not initialized. Call InitializeAsync first.");
 
-    /// <summary>
-    /// Initializes the browser with Chromium.
-    /// </summary>
-    /// <param name="launchOptions">Browser launch options (headless, args, etc.).</param>
-    /// <param name="contextOptions">Browser context options (viewport, locale, etc.).</param>
+    /// <summary>Launches Chromium and creates a new context and page.</summary>
+    /// <param name="launchOptions">Headless mode, executable args, etc.</param>
+    /// <param name="contextOptions">Viewport, locale, permissions, etc.</param>
     public async Task InitializeAsync(
         BrowserTypeLaunchOptions? launchOptions = null,
         BrowserNewContextOptions? contextOptions = null)
@@ -36,10 +31,8 @@ public class BrowserAbility : IAbility
             contextOptions ?? new BrowserNewContextOptions());
         _page = await _context.NewPageAsync();
     }
-   
-    /// <summary>
-    /// Cleans up browser resources.
-    /// </summary>
+
+    /// <summary>Closes page, context, and browser; disposes the Playwright instance.</summary>
     public async Task CloseAsync()
     {
         if (_page != null)
