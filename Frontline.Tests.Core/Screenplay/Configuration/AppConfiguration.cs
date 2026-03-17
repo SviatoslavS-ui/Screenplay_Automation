@@ -23,6 +23,15 @@ public static class AppConfiguration
     /// <summary>Maximize browser window. Automatically false in headless mode.</summary>
     public static bool StartMaximized => !RunHeadless;
 
+    /// <summary>Set FRONTLINE_SQL_ENABLED=false to disable database cleanup. Defaults to true.</summary>
+    public static bool SqlEnabled =>
+        !bool.TryParse(Environment.GetEnvironmentVariable("FRONTLINE_SQL_ENABLED"), out var v) || v;
+
+    /// <summary>SQL Server connection string for test data management. Override with FRONTLINE_SQL_CONNECTION env var.</summary>
+    public static string SqlConnectionString =>
+        Environment.GetEnvironmentVariable("FRONTLINE_SQL_CONNECTION")
+        ?? "Server=flgsqlstdtest;Database=NAVBC160TESTP2;Integrated Security=True;TrustServerCertificate=True";
+
     /// <summary>Dev team's render-complete signal — set in OnAfterRenderAsync.</summary>
     public const string BlazorPageLoadedSelector = ".control-container[data-pageloaded]";
 

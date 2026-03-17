@@ -34,23 +34,23 @@ public static class MagazineExceptionsPageTargets
 
     // ── Column Headers (by data-colindex) ─────────────────────────────────────
 
-    public const string MagIdColumnHeader          = "th[data-colindex='0'] .e-headertext";
-    public const string MagazineNameColumnHeader   = "th[data-colindex='1'] .e-headertext";
-    public const string CompanyColumnHeader        = "th[data-colindex='2'] .e-headertext";
-    public const string ExceptionReasonColumnHeader    = "th[data-colindex='3'] .e-headertext";
-    public const string ExceptionEndDateColumnHeader   = "th[data-colindex='4'] .e-headertext";
+    public const string MagIdColumnHeader = "th[data-colindex='0'] .e-headertext";
+    public const string MagazineNameColumnHeader = "th[data-colindex='1'] .e-headertext";
+    public const string CompanyColumnHeader = "th[data-colindex='2'] .e-headertext";
+    public const string ExceptionReasonColumnHeader = "th[data-colindex='3'] .e-headertext";
+    public const string ExceptionEndDateColumnHeader = "th[data-colindex='4'] .e-headertext";
     public const string ExceptionAddedDateColumnHeader = "th[data-colindex='5'] .e-headertext";
-    public const string ExceptionAddedByColumnHeader   = "th[data-colindex='6'] .e-headertext";
+    public const string ExceptionAddedByColumnHeader = "th[data-colindex='6'] .e-headertext";
 
     // ── Filter Bar Inputs (by input id) ──────────────────────────────────────
 
-    public const string MagIdFilterInput              = "#MagazineId_filterBarcell";
-    public const string MagazineNameFilterInput       = "#MagazineIdAsString_filterBarcell";
-    public const string CompanyFilterInput            = "#company_filterBarcell";
-    public const string ExceptionReasonFilterInput    = "#ExceptionReasonCode_filterBarcell";
-    public const string ExceptionEndDateFilterInput   = "#ExceptionEndDateNicer_filterBarcell";
+    public const string MagIdFilterInput = "#MagazineId_filterBarcell";
+    public const string MagazineNameFilterInput = "#MagazineIdAsString_filterBarcell";
+    public const string CompanyFilterInput = "#company_filterBarcell";
+    public const string ExceptionReasonFilterInput = "#ExceptionReasonCode_filterBarcell";
+    public const string ExceptionEndDateFilterInput = "#ExceptionEndDateNicer_filterBarcell";
     public const string ExceptionAddedDateFilterInput = "#ExceptionAddedDate_filterBarcell";
-    public const string ExceptionAddedByFilterInput   = "#ExceptionAddedBy_filterBarcell";
+    public const string ExceptionAddedByFilterInput = "#ExceptionAddedBy_filterBarcell";
 
     // ── Cell Selectors ────────────────────────────────────────────────────────
 
@@ -59,6 +59,9 @@ public static class MagazineExceptionsPageTargets
 
     /// <summary>First row ID cell for verification.</summary>
     public const string FirstRowIdCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='1']";
+
+    /// <summary>First row company cell for verification.</summary>
+    public const string FirstRowCompanyCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='3']";
 
     /// <summary>First row reason cell for verification.</summary>
     public const string FirstRowReasonCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='4']";
@@ -129,17 +132,17 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Content area of the Add Exception dialog.</summary>
     public const string AddExceptionDialog = ".e-dlg-content";
 
-    /// <summary>Company dropdown input (readonly — click to open EJ2 dropdown).</summary>
-    public const string AddCompanyInput = "#companyPicker";
+    /// <summary>Company dropdown wrapper (click the wrapper span, not the readonly input, to open EJ2 dropdown).</summary>
+    public const string AddCompanyInput = "span.e-ddl:has(#companyPicker)";
 
     /// <summary>Magazine autocomplete search input — appears after company is selected.</summary>
     public const string AddMagazineInput = "#MagSearch";
 
-    /// <summary>Contains search mode radio button.</summary>
-    public const string AddContainsRadio = "input[name='searchtype'][value='contains']";
+    /// <summary>Contains search mode radio button label.</summary>
+    public const string AddContainsRadio = ".e-radio-wrapper:has(input[value='contains']) label";
 
-    /// <summary>Starts with search mode radio button.</summary>
-    public const string AddStartsWithRadio = "input[name='searchtype'][value='startswith']";
+    /// <summary>Starts with search mode radio button label.</summary>
+    public const string AddStartsWithRadio = ".e-radio-wrapper:has(input[value='startswith']) label";
 
     /// <summary>Reason dropdown container — click to open (input has no stable id; identified by placeholder).</summary>
     public const string AddReasonContainer = ".e-dlg-content span.e-ddl:has(input[placeholder='e.g. SRP'])";
@@ -164,9 +167,12 @@ public static class MagazineExceptionsPageTargets
 
     // ── EJ2 Popup (shared — only one popup open at a time) ────────────────────
 
-    /// <summary>EJ2 dropdown/autocomplete popup list item containing the given text.</summary>
-    public static string EjPopupItem(string text) => $".e-popup .e-list-item:has-text('{text}')";
+    /// <summary>EJ2 dropdown/autocomplete list item matched by exact data-value. Works for company and reason popups.</summary>
+    public static string EjPopupItem(string text) => $".e-popup-open .e-list-item[data-value='{text}']";
 
-    /// <summary>EJ2 popup no-data message — shown when search yields no results.</summary>
-    public const string EjPopupNoData = ".e-popup .e-nodata";
+    /// <summary>Magazine autocomplete popup item — scoped to #MagSearch_popup (required for Playwright visibility).</summary>
+    public static string MagSearchPopupItem(string text) => $"#MagSearch_popup .e-list-item[data-value='{text}']";
+
+    /// <summary>Magazine autocomplete no-data message.</summary>
+    public const string MagSearchPopupNoData = "#MagSearch_popup .e-nodata";
 }

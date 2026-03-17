@@ -35,7 +35,7 @@ public class ClickAriaToggle : IInteraction
         await Expect(button).ToBeEnabledAsync(new() { Timeout = DefaultTimeoutMs });
 
         var targetValue = _expandToState ? "true" : "false";
-        var resetValue  = _expandToState ? "false" : "true";
+        var resetValue = _expandToState ? "false" : "true";
 
         // Reset stale state: if already at target, click away first
         var currentState = await button.GetAttributeAsync("aria-expanded");

@@ -25,9 +25,10 @@ public class AddException(
         await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.AddCompanyInput));
 
         // Select company — reveals magazine section
+        var companyItem = MagazineExceptionsPageTargets.EjPopupItem(company);
         await actor.Performs(new Click(MagazineExceptionsPageTargets.AddCompanyInput));
-        await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.EjPopupItem(company)));
-        await actor.Performs(new ClickFirst(MagazineExceptionsPageTargets.EjPopupItem(company)));
+        await actor.Performs(new WaitForElement(companyItem));
+        await actor.Performs(new ClickFirst(companyItem));
 
         await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.AddMagazineInput));
 
@@ -36,16 +37,19 @@ public class AddException(
             await actor.Performs(new Click(MagazineExceptionsPageTargets.AddStartsWithRadio));
 
         // Type magazine name and select from autocomplete suggestions — reveals reason section
-        await actor.Performs(new Fill(MagazineExceptionsPageTargets.AddMagazineInput, magazineSearch));
-        await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.EjPopupItem(magazineSearch)));
-        await actor.Performs(new ClickFirst(MagazineExceptionsPageTargets.EjPopupItem(magazineSearch)));
+        var magazineItem = MagazineExceptionsPageTargets.MagSearchPopupItem(magazineSearch);
+        await actor.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+        await actor.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, magazineSearch));
+        await actor.Performs(new WaitForElement(magazineItem, timeoutMs: 10_000));
+        await actor.Performs(new ClickFirst(magazineItem));
 
         await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.AddReasonContainer));
 
-        // Select reason — enables Save button
+        // Select reason
+        var reasonItem = MagazineExceptionsPageTargets.EjPopupItem(reason);
         await actor.Performs(new Click(MagazineExceptionsPageTargets.AddReasonContainer));
-        await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.EjPopupItem(reason)));
-        await actor.Performs(new ClickFirst(MagazineExceptionsPageTargets.EjPopupItem(reason)));
+        await actor.Performs(new WaitForElement(reasonItem));
+        await actor.Performs(new ClickFirst(reasonItem));
 
         // Optional end date
         if (endDate != null)

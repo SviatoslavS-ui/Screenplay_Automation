@@ -1,6 +1,7 @@
 using Frontline.Tests.Core.Screenplay.Abilities;
 using Frontline.Tests.Core.Screenplay.Core;
 using Frontline.Tests.Core.Screenplay.Questions;
+using NUnit.Framework.Constraints;
 using static Microsoft.Playwright.Assertions;
 
 namespace FrontlineTests.Common;
@@ -60,6 +61,28 @@ public static class ScreenplayAssertions
         var count = await actor.Asks(new CountOf(selector));
         Assert.That(count, Is.GreaterThan(minimum - 1),
             because ?? $"Expected at least {minimum} element(s) matching '{selector}', found {count}");
+    }
+
+    /// <summary>Asserts the element count equals the expected value.</summary>
+    public static async Task ShouldHaveExactly(this Actor actor, string selector, int expected, string? because = null)
+    {
+        var count = await actor.Asks(new CountOf(selector));
+        Assert.That(count, Is.EqualTo(expected),
+            because ?? $"Expected exactly {expected} element(s) matching '{selector}', found {count}");
+    }
+
+    /// <summary>Asserts a boolean Question returns true.</summary>
+    public static async Task ShouldConfirm(this Actor actor, IQuestion<bool> question, string? because = null)
+    {
+        var result = await actor.Asks(question);
+        Assert.That(result, Is.True, because ?? "Expected condition to be true");
+    }
+
+    /// <summary>Asserts a Question's answer satisfies the given NUnit constraint.</summary>
+    public static async Task ShouldAnswer<T>(this Actor actor, IQuestion<T> question, IResolveConstraint constraint, string? because = null)
+    {
+        var result = await actor.Asks(question);
+        Assert.That(result, constraint, because ?? "Question answer did not satisfy constraint");
     }
 
     /// <summary>Retrying assertion — waits until element text contains expected value. Use after actions that trigger async re-renders.</summary>

@@ -12,6 +12,7 @@ End-to-end regression suite for **FLGroup Frontline Applications** — a Blazor 
 | Test framework | NUnit 4 |
 | Browser automation | Microsoft Playwright 1.58 |
 | Pattern | Screenplay (actor-centric BDD) |
+| Database access | Microsoft.Data.SqlClient 6.0 (test data cleanup) |
 | Target app | Blazor Server + Syncfusion EJ2 |
 
 ---
@@ -31,7 +32,7 @@ Test body   →   Tasks (composite user flows)
 - **Task** — a named, reusable user-level flow (e.g. `OpenMagazineExceptionsModule`, `AddException`)
 - **Interaction** — a single atomic UI operation (e.g. `Click`, `Fill`, `WaitForElement`)
 - **Question** — reads application state and returns a typed answer (e.g. `IsVisible`, `TextOf`)
-- **Ability** — owns the Playwright browser/page instance (`BrowserAbility`)
+- **Ability** — capability an actor holds (`BrowserAbility` for Playwright, `DatabaseAbility` for SQL Server)
 
 A typical test reads like a specification:
 
@@ -97,8 +98,11 @@ dotnet test
 ### Run by category
 
 ```bash
-dotnet test --filter "Category=Smoke"
-dotnet test --filter "Category=Functional"
+dotnet test --filter "Category=Smoke"          # 3 tests, ~1 min — navigation, data read, create
+dotnet test --filter "Category=Functional"     # bulk — all feature tests
+dotnet test --filter "Category=EdgeCase"       # boundary conditions
+dotnet test --filter "Category=Security"       # access control
+dotnet test                                    # full regression — all categories
 ```
 
 ### Run a specific test or module
@@ -126,6 +130,8 @@ All settings are driven by environment variables with sensible local defaults. N
 | `FRONTLINE_MAG_EXCEPTIONS_URL` | `https://dotnettest.flgroup.co.uk:10143/` | Magazine Exceptions app URL |
 | `PLAYWRIGHT_HEADLESS` | `false` | Set `true` for CI or headless execution |
 | `TEST_ARTIFACTS_DIR` | `<bin>/../../../TestResults` | Output directory for traces and screenshots |
+| `FRONTLINE_SQL_ENABLED` | `true` | Set `false` to disable database cleanup |
+| `FRONTLINE_SQL_CONNECTION` | *(Windows Auth to flgsqlstdtest)* | SQL Server connection string for test data cleanup |
 
 ---
 
@@ -138,6 +144,107 @@ After each run:
 
 ---
 
+## Test categories
+
+```
+Regression (all tests — nightly / release gate)
+  ├── Smoke       3 tests, ~1 min   "Is the app alive?"
+  ├── Functional  bulk               Feature coverage
+  ├── EdgeCase    boundary tests     Empty states, no-results, special chars
+  └── Security    access control     Auth verification
+```
+
+| Category | Tests | When to run |
+|---|---|---|
+| **Smoke** | TC_001 (navigate), TC_001b (read data), TC_014 (create) | Every deploy, every PR |
+| **Functional** | TC_002–TC_010, TC_014–TC_019, TC_021 | Daily CI, pre-merge |
+| **EdgeCase** | TC_011, TC_013, TC_020 | Full regression |
+| **Security** | TC_012 | Full regression |
+| **Regression** | All of the above (no filter) | Nightly, release gate |
+
+---
+
+## Test data cleanup
+
+Tests that create records via the UI (e.g. `TC_014`, `TC_015`) automatically clean up after themselves using direct SQL Server access via `DatabaseAbility`. The cleanup deletes records matching the test's business keys (company + reason code) and the Windows user who created them.
+
+All DB operations in test bodies go through generic Screenplay abstractions:
+- **`DbExecute`** (Interaction) — parameterised DELETE/INSERT
+- **`DbRecordExists`** (Question) — "does the record exist?" → bool
+- **`DbScalar<T>`** (Question) — generic scalar query → typed result
+
+**Graceful degradation:** If the database is unreachable (e.g. cloud CI agents without network access), a warning is logged and tests run normally — cleanup is simply skipped. Tests that require DB access (TC_014, TC_015) will fail fast with a clear error.
+
+---
+
+## CI/CD setup
+
+### Azure DevOps pipeline example (self-hosted agent on domain)
+
+```yaml
+trigger:
+  branches:
+    include:
+      - master
+      - feature/*
+
+pool:
+  name: 'SelfHosted'  # Agent on the domain with access to flgsqlstdtest
+
+steps:
+  - task: UseDotNet@2
+    inputs:
+      version: '9.0.x'
+
+  - script: dotnet build
+    displayName: 'Build'
+
+  - script: |
+      dotnet build
+      pwsh Frontline.Tests.Core/bin/Debug/net9.0/playwright.ps1 install chromium
+    displayName: 'Install Playwright browsers'
+
+  - script: dotnet test --logger trx --results-directory $(Build.ArtifactStagingDirectory)/TestResults
+    displayName: 'Run tests'
+    env:
+      PLAYWRIGHT_HEADLESS: 'true'
+      # SQL cleanup uses Windows Auth defaults — no config needed on domain agents
+
+  - task: PublishTestResults@2
+    inputs:
+      testResultsFormat: 'VSTest'
+      testResultsFiles: '**/*.trx'
+      searchFolder: $(Build.ArtifactStagingDirectory)/TestResults
+    condition: always()
+
+  - publish: $(Build.ArtifactStagingDirectory)/TestResults
+    artifact: TestResults
+    condition: always()
+```
+
+### Cloud-hosted agent (no domain access)
+
+```yaml
+pool:
+  vmImage: 'windows-latest'
+
+# Same steps as above, but disable SQL cleanup:
+env:
+  PLAYWRIGHT_HEADLESS: 'true'
+  FRONTLINE_SQL_ENABLED: 'false'
+```
+
+### Environment matrix
+
+| Environment | DB reachable | `FRONTLINE_SQL_ENABLED` | Cleanup behaviour |
+|---|---|---|---|
+| Local dev | Yes | `true` (default) | Full cleanup after TC_014/015 |
+| CI self-hosted (domain) | Yes | `true` (default) | Full cleanup |
+| CI cloud-hosted | No | `false` | Tests pass, cleanup skipped |
+| CI cloud-hosted | No | `true` (default) | Warning logged, tests pass, cleanup skipped |
+
+---
+
 ## Project structure
 
 ```
@@ -145,7 +252,7 @@ FrontlineTests.slnx
 ├── Frontline.Tests.Core/          ← Screenplay framework + page objects
 │   └── Screenplay/
 │       ├── Core/                  ← Actor, ITask, IInteraction, IQuestion
-│       ├── Abilities/             ← BrowserAbility (Playwright lifecycle)
+│       ├── Abilities/             ← BrowserAbility (Playwright), DatabaseAbility (SQL Server)
 │       ├── Interactions/          ← Reusable atomic UI operations
 │       ├── Questions/             ← Reusable state readers
 │       ├── Configuration/         ← AppConfiguration (env-var backed)
@@ -179,12 +286,5 @@ Use the existing `MagazineExceptions` module as a reference implementation.
 
 | Module | Tests | Notes |
 |---|---|---|
-| Magazine Exceptions | TC_001–TC_021 | Grid CRUD, filtering, pagination, Add Exception dialog |
+| Magazine Exceptions | TC_001–TC_021 (37 test cases) | Navigation, grid filtering, pagination, Add Exception dialog, DB verification. 9 tests `[Ignore]`d pending defect fixes. |
 
----
-
-## Known limitations
-
-- **Edit / Delete confirmation** — Edit action and Delete confirmation dialog are blocked by server-side defects. Affected tests (`TC_005`, `TC_006`, `TC_007`, `TC_008`, `TC_013`) are marked `[Ignore]` with defect notes and will run automatically once the defects are resolved.
-- **Test data isolation** — tests currently rely on static data present in the test environment. API-based setup/teardown is not yet implemented; `TC_014` and `TC_015` add records that require manual cleanup between runs.
-- **Single browser** — only Chromium is configured. Cross-browser support can be added via the `PLAYWRIGHT_BROWSER` environment variable with minor framework changes.

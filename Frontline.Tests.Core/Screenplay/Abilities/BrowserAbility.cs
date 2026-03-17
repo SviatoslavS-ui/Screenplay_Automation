@@ -31,7 +31,7 @@ public class BrowserAbility : IAbility
             contextOptions ?? new BrowserNewContextOptions());
         _page = await _context.NewPageAsync();
     }
-   
+
     /// <summary>Closes page, context, and browser; disposes the Playwright instance.</summary>
     public async Task CloseAsync()
     {

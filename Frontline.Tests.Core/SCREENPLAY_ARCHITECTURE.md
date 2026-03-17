@@ -15,10 +15,12 @@
 4. [Layer Hierarchy](#4-layer-hierarchy)
 5. [Composite Task Pattern](#5-composite-task-pattern---key-concept)
 6. [Supporting Infrastructure](#6-supporting-infrastructure)
-7. [Real-World Example: TC_001](#7-real-world-example-tc_001)
-8. [Directory Structure](#8-directory-structure)
-9. [Design Decisions Log](#9-design-decisions-log)
-10. [Adding New Tests — Checklist](#10-adding-new-tests--checklist)
+7. [Assertion Helpers Layer](#7-assertion-helpers-layer-screenplayassertions)
+8. [Real-World Example: TC_001](#8-real-world-example-tc_001)
+9. [Grid Data Token Pattern](#9-grid-data-token-pattern)
+10. [Directory Structure](#10-directory-structure)
+11. [Design Decisions Log](#11-design-decisions-log)
+12. [Adding New Tests — Checklist](#12-adding-new-tests--checklist)
 
 ---
 
@@ -82,6 +84,7 @@ Abilities are capabilities granted to an actor. Currently implemented:
 | Class | Description |
 |-------|-------------|
 | `BrowserAbility` | Wraps Playwright `IPage`, `IBrowserContext`, `IBrowser`. Initialized with `BrowserTypeLaunchOptions` + `BrowserNewContextOptions`. Supports `--start-maximized` via Chromium args + `ViewportSize.NoViewport`. |
+| `DatabaseAbility` | Wraps `SqlConnection` for test data cleanup and hybrid DB verification. Initialized with a connection string (Windows Auth). Methods: `ExecuteAsync(sql, params)`, `ScalarAsync<T>(sql, params)`. |
 
 ---
 
@@ -114,11 +117,21 @@ public interface IInteraction
 ```
 Interactions are the **lowest-level** building blocks. They call Playwright directly.
 
-| Class | Playwright call |
+| Class | Playwright/DB call |
 |-------|----------------|
 | `Click(selector)` | `Page.ClickAsync(selector)` |
+| `ClickFirst(selector)` | `Page.Locator(sel).First.ClickAsync()` — avoids strict-mode failure |
 | `Fill(selector, text)` | `Page.FillAsync(selector, text)` |
+| `TypeText(selector, text)` | `Page.Locator(sel).PressSequentiallyAsync(text)` — fires keyboard events for EJ2 autocomplete |
 | `WaitForElement(selector, timeoutMs)` | `Page.WaitForSelectorAsync(selector)` |
+| `ClickAriaToggle` | ARIA toggle with state management + circuit guard |
+| `WaitForBlazorReady` | Blazor circuit health guard (error-ui + reconnect modal hidden) |
+| `WaitForPageLoaded` | Blazor `data-pageloaded` signal (full load or SPA navigation) |
+| `WaitForGridReady` | EJ2 `aria-busy` wait |
+| `WaitForGridDataLoaded` | Waits for `grid-dataloaded` attribute — initial load or change after data mutation |
+| `WaitForDomElement(cssSelector)` | JS `querySelector` wait — bypasses Playwright overlay visibility issues (e.g. EJ2 autocomplete behind dialog overlay) |
+| `PressKey(key)` | `Page.Keyboard.PressAsync(key)` — e.g. Escape to dismiss popups |
+| `DbExecute(sql, params)` | Parameterised non-query via `DatabaseAbility` — for cleanup/setup |
 
 ---
 
@@ -136,7 +149,12 @@ Questions retrieve state from the application for use in assertions.
 | `IsVisible(selector)` | `bool` | Is element currently visible? |
 | `TextOf(selector)` | `string?` | Full text content of an element |
 | `HasText(selector, expected)` | `bool` | Does element text match exactly? |
+| `CountOf(selector)` | `int` | Number of matching elements |
 | `PageTitle()` | `string` | Current browser tab title |
+| `GetPageLoadedToken()` | `string?` | Current `data-pageloaded` attribute value |
+| `GetGridDataToken(gridSelector)` | `string?` | Current `grid-dataloaded` attribute — snapshot before data-mutating actions |
+| `DbRecordExists(sql, params)` | `bool` | Parameterised COUNT query — does at least one record match? |
+| `DbScalar<T>(sql, params)` | `T?` | Generic parameterised scalar query |
 
 ---
 
@@ -358,7 +376,46 @@ var admin = library.GetActor("Admin");  // second actor for multi-user scenarios
 
 ---
 
-## 7. Real-World Example: TC_001
+## 7. Assertion Helpers Layer (`ScreenplayAssertions`)
+
+Test bodies must **never** use `Assert.That` directly. All assertions are wrapped in fluent extension methods on `Actor` in `FrontlineTests.Common/ScreenplayAssertions.cs`.
+
+### Point-in-time assertions (immediate check)
+```csharp
+await user.ShouldSee(selector);                          // IsVisible == true
+await user.ShouldNotSee(selector);                       // IsVisible == false
+await user.ShouldRead(selector, "expected");              // TextOf trimmed == expected
+await user.ShouldReadContaining(selector, "sub");         // TextOf contains substring
+await user.ShouldHaveText(selector, "expected");          // HasText match
+await user.ShouldHaveTitle("expected");                   // Page title contains
+await user.ShouldHaveAtLeast(selector, 5);                // CountOf >= 5
+await user.ShouldHaveExactly(selector, 10);               // CountOf == 10
+```
+
+### Retrying assertions (Playwright Expect — use after async re-renders)
+```csharp
+await user.ShouldEventuallyRead(selector, "expected");    // ToContainTextAsync
+await user.ShouldEventuallyNotRead(selector, "old");      // Not.ToContainTextAsync
+await user.ShouldEventuallySee(selector);                 // ToBeVisibleAsync
+await user.ShouldEventuallyNotSee(selector);              // ToBeHiddenAsync
+```
+
+### Generic Question-based assertions
+```csharp
+// Boolean question — "is the condition true?"
+await user.ShouldConfirm(new DbRecordExists(sql, params), "Record should exist");
+
+// Any question + NUnit constraint — maximum flexibility
+await user.ShouldAnswer(new CountOf(selector), Is.LessThanOrEqualTo(10));
+await user.ShouldAnswer(new DbScalar<DateTime?>(sql, params), Has.Property("Year").EqualTo(2027));
+```
+
+### Rule
+If `Assert.That` appears in a test body, it indicates a missing assertion helper. The only exception is `Assert.Pass` for NUnit control flow (e.g. skipping pagination when single page).
+
+---
+
+## 8. Real-World Example: TC_001
 
 ```csharp
 [Test]
@@ -396,7 +453,29 @@ Everything is delegated to the appropriate layer.
 
 ---
 
-## 8. Directory Structure
+## 9. Grid Data Token Pattern
+
+For actions that mutate grid data (add, delete, edit), use the `grid-dataloaded` token to confirm the grid has re-rendered:
+
+```csharp
+// Snapshot token before the action
+var gridToken = await user.Asks(new GetGridDataToken());
+
+// Perform the data-mutating action
+await user.Performs(new AddException(...));
+
+// Wait for grid to re-render
+await user.Performs(WaitForGridDataLoaded.AfterAction(gridToken!));
+
+// Now safe to assert on grid contents
+await user.ShouldConfirm(new DbRecordExists(sql, params), "Record persisted");
+```
+
+This parallels the `GetPageLoadedToken` + `WaitForPageLoaded.ForSpaNavigation` pattern used for SPA navigation.
+
+---
+
+## 10. Directory Structure
 
 ```
 Frontline.Tests.Core/
@@ -410,38 +489,63 @@ Frontline.Tests.Core/
     │   ├── IQuestion.cs               ← question interface
     │   └── ScreenplayException.cs     ← custom exception
     ├── Abilities/
-    │   └── BrowserAbility.cs          ← Playwright browser/context/page lifecycle
+    │   ├── BrowserAbility.cs          ← Playwright browser/context/page lifecycle
+    │   └── DatabaseAbility.cs         ← SQL Server connection lifecycle
     ├── Tasks/
-    │   ├── NavigateTo.cs              ← atomic: navigate to URL
-    │   └── OpenMagazineExceptionsModule.cs  ← composite: full grid navigation flow
+    │   ├── NavigateTo.cs              ← generic: navigate to URL
+    │   └── MagazineExceptions/
+    │       ├── OpenMagazineExceptionsModule.cs
+    │       ├── FilterExceptionsBy.cs
+    │       └── AddException.cs
     ├── Interactions/
     │   ├── Click.cs                   ← Page.ClickAsync
+    │   ├── ClickFirst.cs              ← Locator.First.ClickAsync (EJ2 popups)
     │   ├── Fill.cs                    ← Page.FillAsync
-    │   └── WaitForElement.cs          ← Page.WaitForSelectorAsync
+    │   ├── TypeText.cs                ← PressSequentiallyAsync (EJ2 autocomplete)
+    │   ├── WaitForElement.cs          ← Page.WaitForSelectorAsync
+    │   ├── ClickAriaToggle.cs         ← ARIA toggle with state management
+    │   ├── WaitForBlazorReady.cs      ← Blazor circuit health guard
+    │   ├── WaitForPageLoaded.cs       ← data-pageloaded signal
+    │   ├── WaitForGridReady.cs        ← EJ2 aria-busy wait
+    │   ├── WaitForGridDataLoaded.cs   ← grid-dataloaded token change
+    │   ├── WaitForDomElement.cs      ← JS querySelector wait (overlay bypass)
+    │   ├── PressKey.cs               ← keyboard key press
+    │   └── DbExecute.cs              ← parameterised SQL non-query
     ├── Questions/
     │   ├── IsVisible.cs               ← Page.IsVisibleAsync → bool
     │   ├── TextOf.cs                  ← Page.TextContentAsync → string?
     │   ├── HasText.cs                 ← text equality check → bool
-    │   └── PageTitle.cs               ← Page.TitleAsync → string
+    │   ├── CountOf.cs                 ← Locator.CountAsync → int
+    │   ├── PageTitle.cs               ← Page.TitleAsync → string
+    │   ├── GetPageLoadedToken.cs      ← data-pageloaded attribute value
+    │   ├── GetGridDataToken.cs        ← grid-dataloaded attribute value
+    │   ├── DbRecordExists.cs          ← parameterised COUNT → bool
+    │   └── DbScalar.cs                ← parameterised scalar → T?
     ├── Targets/
-    │   └── MagazineExceptionsPageTargets.cs  ← all CSS selectors for the feature
+    │   └── MagazineExceptions/
+    │       └── MagazineExceptionsPageTargets.cs
     ├── TestData/
-    │   └── MagazineExceptionsTestData.cs     ← expected values / constants
+    │   └── MagazineExceptions/
+    │       ├── MagazineExceptionsTestData.cs
+    │       └── MagazineExceptionsCleanup.cs    ← SQL queries + DB constants
     ├── Configuration/
     │   └── AppConfiguration.cs        ← URLs, headless flag, maximized flag
     └── Infrastructure/
         └── ActorLibrary.cs            ← actor get-or-create registry
 
 FrontlineTests.Common/
-└── ScreenplayTestBase.cs              ← abstract NUnit base fixture
+├── ScreenplayTestBase.cs              ← abstract NUnit base fixture + cleanup registry
+├── ScreenplayAssertions.cs            ← fluent assertion extensions on Actor
+└── TestCategories.cs                  ← Smoke, Functional, EdgeCase, Security constants
 
 FrontlineTests.BusinessShells/
-└── MagazineExceptionsTests.cs         ← TC_001 and future Magazine Exceptions tests
+└── MagazineExceptions/
+    └── MagazineExceptionsTests.cs     ← TC_001–TC_021
 ```
 
 ---
 
-## 9. Design Decisions Log
+## 11. Design Decisions Log
 
 | Decision | Rationale |
 |----------|-----------|
@@ -454,10 +558,18 @@ FrontlineTests.BusinessShells/
 | `WaitForElement` placed after the action that triggers it | Playwright waits are assertions about post-action state. Placing them before the triggering action would wait for an element that may already be stale or for the wrong reason. |
 | `ScreenplayTestBase` uses `TryGetAbility` in teardown | `UsesAbility` throws if the ability is missing. If a test fails during setup before the ability is granted, teardown must not throw a second exception that masks the original failure. |
 | Test data extracted to `MagazineExceptionsTestData` | Magic strings in test methods make grep-based analysis impossible and break silently when expected values change. |
+| `DatabaseAbility` as opt-in ability | DB connection may fail (network, CI). Try/catch in SetUp logs warning; tests run without cleanup. Tests that require DB use `UsesAbility<DatabaseAbility>()` and fail fast. |
+| `DbExecute`, `DbRecordExists`, `DbScalar<T>` are generic | Parameterised with SQL + `SqlParameter[]`. No hardcoded queries — reusable across any module. SQL constants live in `TestData/{Module}/`. |
+| No `Assert.That` in test bodies | All assertions wrapped in `ScreenplayAssertions` helpers. `ShouldConfirm` for boolean Questions, `ShouldAnswer` for arbitrary NUnit constraints. Keeps test bodies in domain language. |
+| `TypeText` vs `Fill` for autocomplete | EJ2 autocomplete requires keyboard events to trigger search. `Fill` sets value programmatically (no `keydown`/`keyup`). `TypeText` uses `PressSequentiallyAsync` with 50ms delay. |
+| `grid-dataloaded` token pattern | Parallels `data-pageloaded` for SPA navigation. Snapshot before action, wait for change after. Confirms grid re-rendered with fresh data before point-in-time assertions. |
+| `net9.0-windows` target framework | Project uses `WindowsIdentity.GetCurrent()` for DB cleanup scoping. TFM declares Windows dependency, eliminates CA1416 warnings. |
+| `WaitForDomElement` vs `WaitForElement` | EJ2 dialog overlay (`e-dlg-overlay`, z-index 1200) blocks Playwright's visibility detection on autocomplete popups (z-index 1202). `WaitForDomElement` uses JS `querySelector` which is unaffected by overlays. Use for any element behind an EJ2 overlay. |
+| `EjPopupItem` scoped to `#MagSearch_popup` | Magazine autocomplete popup is a separate `div` appended to `<body>`. Company/reason dropdowns use `.e-popup-open` scope. Each EJ2 component has its own popup container with `{inputId}_popup` ID pattern. |
 
 ---
 
-## 10. Adding New Tests — Checklist
+## 12. Adding New Tests — Checklist
 
 **For a new test in `MagazineExceptionsTests`:**
 - [ ] Add any missing selectors to `MagazineExceptionsPageTargets`

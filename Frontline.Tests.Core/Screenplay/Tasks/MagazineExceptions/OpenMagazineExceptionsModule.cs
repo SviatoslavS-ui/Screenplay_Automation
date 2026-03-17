@@ -26,6 +26,7 @@ public class OpenMagazineExceptionsModule : ITask
         await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.ExceptionsContentTable));
         await actor.Performs(new WaitForBlazorReady());
         await actor.Performs(new WaitForGridReady());
+        await actor.Performs(WaitForGridDataLoaded.ForInitialLoad());
 
         await actor.Performs(WaitForPageLoaded.ForSpaNavigation(tokenBeforeSpa!));
     }

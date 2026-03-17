@@ -61,14 +61,14 @@ public static class MagazineExceptionsTestData
 
     // ── Add Exception (TC-014+) ───────────────────────────────────────────────
 
-    public const string AddException_Company        = "SEYMOUR";
+    public const string AddException_Company = "SEYMOUR";
     public const string AddException_MagazineSearch = "GAMER";
-    public const string AddException_Reason         = "TIME SENSITIVE";
-    public const string AddException_EndDate        = "15/06/2027";   // DD/MM/YYYY — unambiguous future date
+    public const string AddException_Reason = "TIME SENSITIVE";
+    public const string AddException_EndDate = "15/06/2027";   // DD/MM/YYYY — unambiguous future date
 
     // TC-018/019: magazine search mode — "AMER" is mid-string in "GAMER", "GAM" is a prefix
     public const string MagazineSearch_MidString = "AMER";
-    public const string MagazineSearch_Prefix    = "GAM";
+    public const string MagazineSearch_Prefix = "GAM";
 
     // TC-020: non-existent magazine
     public const string NonExistentMagazine = "ZZZNOMATCH";

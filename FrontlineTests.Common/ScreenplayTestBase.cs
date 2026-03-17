@@ -12,6 +12,11 @@ public abstract class ScreenplayTestBase
 {
     protected ActorLibrary ActorLibrary { get; private set; } = null!;
 
+    private readonly List<Func<Task>> _cleanupActions = [];
+
+    /// <summary>Register a cleanup action to run during TearDown (after screenshots, before browser close).</summary>
+    protected void RegisterCleanup(Func<Task> cleanupAction) => _cleanupActions.Add(cleanupAction);
+
     [SetUp]
     public virtual async Task SetUp()
     {
@@ -38,7 +43,22 @@ public abstract class ScreenplayTestBase
                     : (AppConfiguration.StartMaximized ? ViewportSize.NoViewport : null)
             });
 
-        ActorLibrary.GetActor("User").Can(browserAbility);
+        var user = ActorLibrary.GetActor("User");
+        user.Can(browserAbility);
+
+        if (AppConfiguration.SqlEnabled)
+        {
+            try
+            {
+                var dbAbility = new DatabaseAbility();
+                await dbAbility.InitializeAsync(AppConfiguration.SqlConnectionString);
+                user.Can(dbAbility);
+            }
+            catch (Exception ex)
+            {
+                TestContext.Out.WriteLine($"[DatabaseAbility] Connection failed, cleanup will be skipped: {ex.Message}");
+            }
+        }
 
         await browserAbility.Context.Tracing.StartAsync(new()
         {
@@ -75,6 +95,20 @@ public abstract class ScreenplayTestBase
                         FullPage = true
                     });
                 }
+
+                // Run registered cleanup actions before closing connections
+                foreach (var cleanup in _cleanupActions)
+                {
+                    try { await cleanup(); }
+                    catch (Exception ex)
+                    {
+                        TestContext.Out.WriteLine($"[Cleanup] Warning: {ex.Message}");
+                    }
+                }
+                _cleanupActions.Clear();
+
+                if (actor.TryGetAbility<DatabaseAbility>(out var dbAbility) && dbAbility != null)
+                    await dbAbility.CloseAsync();
 
                 await browserAbility.CloseAsync();
             }

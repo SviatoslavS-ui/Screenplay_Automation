@@ -12,6 +12,7 @@ public class FilterExceptionsBy(string filterFieldSelector, string filterValue) 
     {
         ArgumentNullException.ThrowIfNull(filterFieldSelector);
         ArgumentNullException.ThrowIfNull(filterValue);
+
         await actor.Performs(new Fill(filterFieldSelector, filterValue));
     }
 }
