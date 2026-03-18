@@ -80,7 +80,7 @@ dotnet build
 pwsh Frontline.Tests.Core/bin/Debug/net9.0/playwright.ps1 install chromium
 ```
 
-> On Linux/macOS without PowerShell: `dotnet tool install --global Microsoft.Playwright.CLI && playwright install chromium`
+> **Note:** This project targets Windows (`net9.0-windows`) and uses Windows Authentication for database access. Linux/macOS are not supported.
 
 ### 4. Build
 
@@ -293,5 +293,5 @@ Use the existing `MagazineExceptions` module as a reference implementation.
 
 | Module | Tests | Notes |
 |---|---|---|
-| Magazine Exceptions | TC_001–TC_021 | Navigation, grid filtering, edit with DB restore, pagination, Add Exception dialog, DB create/verify. 4 tests `[Ignore]`d pending defect fixes (TC_007, TC_008, TC_017c, TC_019). |
+| Magazine Exceptions | TC_001–TC_021 | Navigation, grid filtering, edit with DB restore, pagination, Add Exception dialog, DB create/verify. Some tests pending defect resolution. |
 
