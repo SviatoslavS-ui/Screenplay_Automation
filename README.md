@@ -1,4 +1,8 @@
 # FrontlineTests — Automated Regression Suite
+![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)
+![Playwright](https://img.shields.io/badge/Playwright-1.58-45ba4b?logo=playwright)
+![C#](https://img.shields.io/badge/C%23-13-239120?logo=csharp)
+![License](https://img.shields.io/badge/license-MIT-blue)
 
 End-to-end regression suite for **FLGroup Frontline Applications** — a Blazor Server platform with Syncfusion EJ2 data grids.
 
@@ -21,25 +25,34 @@ End-to-end regression suite for **FLGroup Frontline Applications** — a Blazor 
 
 Tests are written using the **Screenplay pattern** — an actor-centric approach to BDD that keeps test bodies readable and free of Playwright/selector details.
 
-```
-Test body   →   Tasks (composite user flows)
-                  →   Interactions (atomic Playwright operations)
-                        →   Abilities (browser lifecycle)
-            →   Questions (read application state)
+```mermaid
+graph TB
+    Test[Test Body] --> Task[Tasks<br/>Composite Flows]
+    Task --> Interaction[Interactions<br/>Atomic UI Operations]
+    Interaction --> Ability[Abilities<br/>Browser Lifecycle]
+    Interaction --> Ability[Abilities<br/>Database Interface]
+    Task --> Question[Questions<br/>Read State]
+   
+    style Test fill:#e1f5ff
+    style Task fill:#fff4e6
+    style Interaction fill:#f3e5f5
+    style Question fill:#e8f5e9
+    style Ability fill:#fce4ec
 ```
 
-- **Actor** — represents a user; holds abilities and performs tasks
-- **Task** — a named, reusable user-level flow (e.g. `OpenMagazineExceptionsModule`, `AddException`)
-- **Interaction** — a single atomic UI operation (e.g. `Click`, `Fill`, `WaitForElement`)
-- **Question** — reads application state and returns a typed answer (e.g. `IsVisible`, `TextOf`)
-- **Ability** — capability an actor holds (`BrowserAbility` for Playwright, `DatabaseAbility` for SQL Server)
+**Example:**
+- **Actor** — represents a user (holds abilities, performs tasks)
+- **Task** — named user flow (e.g., `OpenMagazineExceptionsModule`)
+- **Interaction** — atomic operation (e.g., `Click`, `Fill`)
+- **Question** — reads state (e.g., `IsVisible`, `TextOf`)
+- **Ability** — owns Playwright instance
 
 A typical test reads like a specification:
 
 ```csharp
 await user.Performs(new NavigateTo(AppConfiguration.BaseUrl));
 await user.Performs(new OpenMagazineExceptionsModule());
-await user.Performs(new FilterExceptionsBy(MagIdFilterInput, "12"));
+await user.Performs(new Fill(MagIdFilterInput, "12"));
 await user.ShouldEventuallyRead(FirstRowIdCell, "12");
 ```
 
@@ -164,16 +177,20 @@ Regression (all tests — nightly / release gate)
 
 ---
 
-## Test data cleanup
+## Test data management
 
-Tests that create records via the UI (e.g. `TC_014`, `TC_015`) automatically clean up after themselves using direct SQL Server access via `DatabaseAbility`. The cleanup deletes records matching the test's business keys (company + reason code) and the Windows user who created them.
+Tests interact with the database in three distinct ways — all using the same generic Screenplay abstractions (`DbExecute`, `DbRecordExists`, `DbScalar<T>`).
 
-All DB operations in test bodies go through generic Screenplay abstractions:
-- **`DbExecute`** (Interaction) — parameterised DELETE/INSERT
-- **`DbRecordExists`** (Question) — "does the record exist?" → bool
-- **`DbScalar<T>`** (Question) — generic scalar query → typed result
+### 1. Fixture seed check (`[OneTimeSetUp]`)
+Before any test in a fixture runs, `[OneTimeSetUp]` verifies that the required reference entities exist in the database and inserts them if absent. Uses a raw `SqlConnection` (actors are not initialised yet at this stage). Bails out silently if the DB is unreachable.
 
-**Graceful degradation:** If the database is unreachable (e.g. cloud CI agents without network access), a warning is logged and tests run normally — cleanup is simply skipped. Tests that require DB access (TC_014, TC_015) will fail fast with a clear error.
+### 2. Edit restore cleanup (TC_005)
+Tests that mutate pre-existing data snapshot the original value before the test and register a `RegisterCleanup` action that restores it in TearDown — regardless of test outcome. No record is ever permanently modified.
+
+### 3. Create cleanup (TC_014, TC_015)
+Tests that create new records via the UI register a `RegisterCleanup` action that deletes the created records in TearDown by matching company, reason code, and the Windows identity of the test runner.
+
+**Graceful degradation:** If the database is unreachable (e.g. cloud CI agents without network access), a warning is logged and tests run normally — cleanup and seeding are simply skipped. Set `FRONTLINE_SQL_ENABLED=false` to skip the connection attempt entirely.
 
 ---
 
@@ -286,5 +303,5 @@ Use the existing `MagazineExceptions` module as a reference implementation.
 
 | Module | Tests | Notes |
 |---|---|---|
-| Magazine Exceptions | TC_001–TC_021 (37 test cases) | Navigation, grid filtering, pagination, Add Exception dialog, DB verification. 9 tests `[Ignore]`d pending defect fixes. |
+| Magazine Exceptions | TC_001–TC_021 | Navigation, grid filtering, edit with DB restore, pagination, Add Exception dialog, DB create/verify. 4 tests `[Ignore]`d pending defect fixes (TC_007, TC_008, TC_017c, TC_019). |
 

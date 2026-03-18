@@ -36,12 +36,16 @@ public class AddException(
         if (searchMode == "startswith")
             await actor.Performs(new Click(MagazineExceptionsPageTargets.AddStartsWithRadio));
 
-        // Type magazine name and select from autocomplete suggestions — reveals reason section
+        // Type magazine name — fires Blazor @oninput on each keystroke, triggering server-side
+        // suggestion filtering. WaitForBlazorReady after click lets ValueChange propagate so
+        // Blazor reveals the reason section before we check for it.
         var magazineItem = MagazineExceptionsPageTargets.MagSearchPopupItem(magazineSearch);
         await actor.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+        await actor.Performs(new WaitForBlazorReady());
         await actor.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, magazineSearch));
         await actor.Performs(new WaitForElement(magazineItem, timeoutMs: 10_000));
         await actor.Performs(new ClickFirst(magazineItem));
+        await actor.Performs(new WaitForBlazorReady());
 
         await actor.Performs(new WaitForElement(MagazineExceptionsPageTargets.AddReasonContainer));
 

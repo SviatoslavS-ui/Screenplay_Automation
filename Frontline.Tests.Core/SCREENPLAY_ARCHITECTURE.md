@@ -335,7 +335,6 @@ Filter inputs (by field-name id):
 public static class MagazineExceptionsTestData
 {
     public const string ExpectedHomePageTitle = "FLGroup Apps";
-    public const string ExpectedPageHeader    = "Magazine Exceptions";
 }
 ```
 No magic strings inside test methods. All expected values are named constants here.
@@ -495,7 +494,6 @@ Frontline.Tests.Core/
     │   ├── NavigateTo.cs              ← generic: navigate to URL
     │   └── MagazineExceptions/
     │       ├── OpenMagazineExceptionsModule.cs
-    │       ├── FilterExceptionsBy.cs
     │       └── AddException.cs
     ├── Interactions/
     │   ├── Click.cs                   ← Page.ClickAsync
@@ -566,6 +564,7 @@ FrontlineTests.BusinessShells/
 | `net9.0-windows` target framework | Project uses `WindowsIdentity.GetCurrent()` for DB cleanup scoping. TFM declares Windows dependency, eliminates CA1416 warnings. |
 | `WaitForDomElement` vs `WaitForElement` | EJ2 dialog overlay (`e-dlg-overlay`, z-index 1200) blocks Playwright's visibility detection on autocomplete popups (z-index 1202). `WaitForDomElement` uses JS `querySelector` which is unaffected by overlays. Use for any element behind an EJ2 overlay. |
 | `EjPopupItem` scoped to `#MagSearch_popup` | Magazine autocomplete popup is a separate `div` appended to `<body>`. Company/reason dropdowns use `.e-popup-open` scope. Each EJ2 component has its own popup container with `{inputId}_popup` ID pattern. |
+| `[OneTimeSetUp]` uses raw `SqlConnection`, not `DatabaseAbility` | `[OneTimeSetUp]` runs before NUnit `[SetUp]`, so actors and abilities are not yet initialised. A direct connection is the only option. It mirrors `DatabaseAbility` internally (same connection string, same `SqlCommand` pattern) without going through the actor system. |
 
 ---
 
@@ -583,6 +582,7 @@ FrontlineTests.BusinessShells/
 - [ ] Create composite task(s) in `/Tasks`
 - [ ] Create `SubscriptionsTests.cs` in `FrontlineTests.BusinessShells`, inheriting `ScreenplayTestBase`
 - [ ] If setup needs multiple actors or a different browser, override `InitializeActorsAsync()`
+- [ ] If tests depend on pre-existing DB rows, add `[OneTimeSetUp] EnsureTestEntitiesExistAsync()` — check and seed using `EntitySeedData` records and SQL constants in `{Module}Cleanup.cs`
 
    - `ScreenplayTestBase` - Common setup/teardown
    - Browser configuration management

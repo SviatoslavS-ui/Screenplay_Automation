@@ -14,10 +14,6 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Sidebar nav link to the exceptions grid.</summary>
     public const string MagazineExceptionsMenuItem = "a.e-menu-url[href='/MagazineExceptions']";
 
-    // ── Page Elements ─────────────────────────────────────────────────────────
-
-    public const string PageHeader = "span.pageheader";
-
     // ── Grid ──────────────────────────────────────────────────────────────────
 
     /// <summary>Root ID of the Syncfusion grid — used by WaitForGridReady to detect aria-busy state.</summary>
@@ -32,36 +28,16 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Data rows inside the content table (excludes header/filter rows).</summary>
     public const string TableRows = "#MagGrid_content_table tbody tr.e-row";
 
-    // ── Column Headers (by data-colindex) ─────────────────────────────────────
-
-    public const string MagIdColumnHeader = "th[data-colindex='0'] .e-headertext";
-    public const string MagazineNameColumnHeader = "th[data-colindex='1'] .e-headertext";
-    public const string CompanyColumnHeader = "th[data-colindex='2'] .e-headertext";
-    public const string ExceptionReasonColumnHeader = "th[data-colindex='3'] .e-headertext";
-    public const string ExceptionEndDateColumnHeader = "th[data-colindex='4'] .e-headertext";
-    public const string ExceptionAddedDateColumnHeader = "th[data-colindex='5'] .e-headertext";
-    public const string ExceptionAddedByColumnHeader = "th[data-colindex='6'] .e-headertext";
-
     // ── Filter Bar Inputs (by input id) ──────────────────────────────────────
 
     public const string MagIdFilterInput = "#MagazineId_filterBarcell";
     public const string MagazineNameFilterInput = "#MagazineIdAsString_filterBarcell";
     public const string CompanyFilterInput = "#company_filterBarcell";
-    public const string ExceptionReasonFilterInput = "#ExceptionReasonCode_filterBarcell";
-    public const string ExceptionEndDateFilterInput = "#ExceptionEndDateNicer_filterBarcell";
-    public const string ExceptionAddedDateFilterInput = "#ExceptionAddedDate_filterBarcell";
-    public const string ExceptionAddedByFilterInput = "#ExceptionAddedBy_filterBarcell";
 
     // ── Cell Selectors ────────────────────────────────────────────────────────
 
-    /// <summary>Magazine Name cell in the first data row.</summary>
-    public const string ExceptionNameCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='2']";
-
     /// <summary>First row ID cell for verification.</summary>
     public const string FirstRowIdCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='1']";
-
-    /// <summary>First row company cell for verification.</summary>
-    public const string FirstRowCompanyCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='3']";
 
     /// <summary>First row reason cell for verification.</summary>
     public const string FirstRowReasonCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='4']";
@@ -71,11 +47,8 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Edit dialog modal container.</summary>
     public const string EditDialog = ".e-dialog[role='dialog']";
 
-    /// <summary>Dialog close button (×).</summary>
-    public const string DialogCloseButton = ".e-dialog .e-icons.e-close";
-
-    /// <summary>Exception reason field inside edit dialog.</summary>
-    public const string EditReasonField = ".e-dialog input[id*='ExceptionReasonCode']";
+    /// <summary>Reason dropdown arrow icon in the edit dialog — click this to open the EJ2 dropdown list.</summary>
+    public const string EditReasonDropdownIcon = ".e-dialog .e-input-group-icon.e-ddl-icon";
 
     /// <summary>Edit dialog Save button.</summary>
     public const string EditSaveButton = ".e-dialog button:has-text('Save')";
@@ -97,6 +70,10 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Edit button in the first data row (action column).</summary>
     public const string FirstRowEditButton = "#MagGrid_content_table tbody tr.e-row:first-child button:has-text('Edit')";
 
+    /// <summary>Edit button in the row whose Magazine ID column exactly matches <paramref name="magId"/>.</summary>
+    public static string RowEditButton(string magId) =>
+        $"#MagGrid_content_table tbody tr.e-row:has(td[aria-colindex='1']:text-is('{magId}')) button:has-text('Edit')";
+
     /// <summary>Delete button in the first data row (action column).</summary>
     public const string FirstRowDeleteButton = "#MagGrid_content_table tbody tr.e-row:first-child button:has-text('Delete')";
 
@@ -105,9 +82,6 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Toast notification container.</summary>
     public const string Toast = "div#toast, .e-toast-container";
 
-    /// <summary>Toast message text.</summary>
-    public const string ToastMessage = "div#toast, .e-toast-container .e-toast-message";
-
     // ── Pagination ────────────────────────────────────────────────────────────
 
     /// <summary>Next page button in Syncfusion grid pager.</summary>
@@ -115,9 +89,6 @@ public static class MagazineExceptionsPageTargets
 
     /// <summary>Previous page button in Syncfusion grid pager.</summary>
     public const string PaginationPrevButton = ".e-pagercontainer .e-numericitem:has-text('Previous')";
-
-    /// <summary>Last page button in Syncfusion grid pager.</summary>
-    public const string PaginationLastButton = ".e-pagercontainer .e-numericitem:has-text('Last')";
 
     // ── Empty State ───────────────────────────────────────────────────────────
 
@@ -162,15 +133,13 @@ public static class MagazineExceptionsPageTargets
     /// <summary>Cancel button in the Add Exception dialog.</summary>
     public const string AddCancelButton = ".e-dlg-content button:has-text('Cancel')";
 
-    /// <summary>First row end date cell (aria-colindex 5 = data-colindex 4).</summary>
-    public const string FirstRowEndDateCell = "#MagGrid_content_table tbody tr.e-row:first-child td[aria-colindex='5']";
-
     // ── EJ2 Popup (shared — only one popup open at a time) ────────────────────
 
     /// <summary>EJ2 dropdown/autocomplete list item matched by exact data-value. Works for company and reason popups.</summary>
     public static string EjPopupItem(string text) => $".e-popup-open .e-list-item[data-value='{text}']";
 
-    /// <summary>Magazine autocomplete popup item — scoped to #MagSearch_popup (required for Playwright visibility).</summary>
+    /// <summary>Magazine autocomplete popup item — scoped to #MagSearch_popup (required for Playwright visibility
+    /// when the dialog overlay blocks generic .e-popup-open matching).</summary>
     public static string MagSearchPopupItem(string text) => $"#MagSearch_popup .e-list-item[data-value='{text}']";
 
     /// <summary>Magazine autocomplete no-data message.</summary>

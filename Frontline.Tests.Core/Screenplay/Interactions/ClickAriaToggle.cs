@@ -14,9 +14,6 @@ public class ClickAriaToggle : IInteraction
     /// <summary>Click to expand: locate button by accessible name, wait for aria-expanded=true.</summary>
     public static ClickAriaToggle ToExpand(string accessibleName) => new(accessibleName, true);
 
-    /// <summary>Click to collapse: locate button by accessible name, wait for aria-expanded=false.</summary>
-    public static ClickAriaToggle ToCollapse(string accessibleName) => new(accessibleName, false);
-
     private ClickAriaToggle(string accessibleName, bool expandToState)
     {
         _accessibleName = accessibleName;

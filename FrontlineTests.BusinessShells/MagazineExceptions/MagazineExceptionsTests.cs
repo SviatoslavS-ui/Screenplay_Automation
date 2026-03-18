@@ -8,12 +8,75 @@ using Frontline.Tests.Core.Screenplay.TestData.MagazineExceptions;
 using Frontline.Tests.Core.Screenplay.Interactions;
 using FrontlineTests.Common;
 using Microsoft.Data.SqlClient;
+using System.Data;
 
 namespace FrontlineTests.Tests.MagazineExceptions;
 
 [TestFixture]
 public class MagazineExceptionsTests : ScreenplayTestBase
 {
+    // ── Fixture-level setup ──────────────────────────────────────────────────
+
+    [OneTimeSetUp]
+    public async Task EnsureTestEntitiesExistAsync()
+    {
+        if (!AppConfiguration.SqlEnabled)
+        {
+            TestContext.Out.WriteLine("[Seed] SQL disabled — skipping test entity verification.");
+            return;
+        }
+
+        await using var connection = new SqlConnection(AppConfiguration.SqlConnectionString);
+        try
+        {
+            await connection.OpenAsync();
+        }
+        catch (Exception ex)
+        {
+            TestContext.Out.WriteLine($"[Seed] DB connection failed — skipping entity verification. {ex.Message}");
+            return;
+        }
+
+        EntitySeedData[] entities =
+        [
+            MagazineExceptionsCleanup.Entity1Seed,
+            MagazineExceptionsCleanup.Entity2Seed,
+            MagazineExceptionsCleanup.Entity3Seed,
+        ];
+
+        foreach (var entity in entities)
+            await EnsureEntityExistsAsync(connection, entity);
+    }
+
+    private static async Task EnsureEntityExistsAsync(SqlConnection connection, EntitySeedData seed)
+    {
+        await using var checkCmd = new SqlCommand(MagazineExceptionsCleanup.CheckEntityExists, connection);
+        checkCmd.Parameters.Add(new SqlParameter("@MagazineId", SqlDbType.Int) { Value = seed.MagazineId });
+        checkCmd.Parameters.Add(new SqlParameter("@CompanyId",  SqlDbType.Int) { Value = seed.CompanyId });
+
+        var count = (int)(await checkCmd.ExecuteScalarAsync())!;
+        if (count > 0)
+        {
+            TestContext.Out.WriteLine($"[Seed] Verified: {seed.Label}");
+            return;
+        }
+
+        TestContext.Out.WriteLine($"[Seed] Missing — inserting: {seed.Label}");
+        await using var insertCmd = new SqlCommand(MagazineExceptionsCleanup.SeedEntity, connection);
+        insertCmd.Parameters.Add(new SqlParameter("@MagazineId",  SqlDbType.Int)          { Value = seed.MagazineId });
+        insertCmd.Parameters.Add(new SqlParameter("@CompanyId",   SqlDbType.Int)          { Value = seed.CompanyId });
+        insertCmd.Parameters.Add(new SqlParameter("@ReasonCode",  SqlDbType.NVarChar, 20) { Value = seed.ReasonCode });
+        insertCmd.Parameters.Add(new SqlParameter("@ReasonText",  SqlDbType.NVarChar, 100){ Value = seed.ReasonText });
+
+        var rows = await insertCmd.ExecuteNonQueryAsync();
+        if (rows == 0)
+            Assert.Fail($"[Seed] Could not insert {seed.Label} — magazine {seed.MagazineId} not found in V_DOTNET_PRODUCT.");
+
+        TestContext.Out.WriteLine($"[Seed] Inserted: {seed.Label}");
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+
     [Test]
     [Category(TestCategories.Smoke)]
     public async Task TC_001_NavigateToMagazineExceptionsPage()
@@ -45,7 +108,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         await user.Performs(new OpenMagazineExceptionsModule());
 
         // When: User filters by Entity 1 ID (12 - RADIO TIMES)
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagIdFilterInput,
             MagazineExceptionsTestData.Entity1_MagId));
 
@@ -54,8 +117,8 @@ public class MagazineExceptionsTests : ScreenplayTestBase
             MagazineExceptionsTestData.Entity1_MagId);
 
         // And: Clear filter, then filter by Entity 2 ID (10760 - MOJO EXPORT)
-        await user.Performs(new FilterExceptionsBy(MagazineExceptionsPageTargets.MagIdFilterInput, ""));
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(MagazineExceptionsPageTargets.MagIdFilterInput, ""));
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagIdFilterInput,
             MagazineExceptionsTestData.Entity2_MagId));
 
@@ -96,7 +159,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         await user.Performs(new OpenMagazineExceptionsModule());
 
         // When: User filters by exception ID
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagIdFilterInput,
             exceptionId));
 
@@ -145,15 +208,14 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         await user.Performs(new OpenMagazineExceptionsModule());
 
         // When: User filters by magazine name
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagazineNameFilterInput,
             exceptionName));
 
         // Then: Grid handles gracefully (special chars) or shows expected result
         if (expectEmpty == null)
         {
-            await user.Performs(new WaitForBlazorReady());
-            await user.ShouldSee(MagazineExceptionsPageTargets.ExceptionsContentTable);
+            await user.ShouldEventuallySee(MagazineExceptionsPageTargets.ExceptionsContentTable);
             return;
         }
 
@@ -201,15 +263,14 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         await user.Performs(new OpenMagazineExceptionsModule());
 
         // When: User filters by company name
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.CompanyFilterInput,
             companyName));
 
         // Then: Grid handles gracefully (special chars) or shows expected result
         if (expectEmpty == null)
         {
-            await user.Performs(new WaitForBlazorReady());
-            await user.ShouldSee(MagazineExceptionsPageTargets.ExceptionsContentTable);
+            await user.ShouldEventuallySee(MagazineExceptionsPageTargets.ExceptionsContentTable);
             return;
         }
 
@@ -225,56 +286,70 @@ public class MagazineExceptionsTests : ScreenplayTestBase
 
     private static IEnumerable<TestCaseData> EditExceptionTestCases()
     {
-        yield return new TestCaseData(MagazineExceptionsTestData.ValidNewReason)
-            .SetName("TC_005_a_EditReason_ValidShortString")
-            .SetDescription("Edit with valid short string saves and shows success toast");
+        yield return new TestCaseData(MagazineExceptionsTestData.EditReason_A)
+            .SetName("TC_005_a_EditReason_TimeSensitive")
+            .SetDescription("Edit reason to TIME SENSITIVE saves and shows success toast");
 
-        yield return new TestCaseData(MagazineExceptionsTestData.MaxLengthReason)
-            .SetName("TC_005_b_EditReason_MaxLength")
-            .SetDescription("Edit with max-length string saves and shows success toast");
+        yield return new TestCaseData(MagazineExceptionsTestData.EditReason_B)
+            .SetName("TC_005_b_EditReason_Embargo")
+            .SetDescription("Edit reason to EMBARGO saves and shows success toast");
 
-        yield return new TestCaseData(MagazineExceptionsTestData.SpecialCharReason)
-            .SetName("TC_005_c_EditReason_SpecialChars")
-            .SetDescription("Edit with special characters saves correctly");
+        yield return new TestCaseData(MagazineExceptionsTestData.EditReason_C)
+            .SetName("TC_005_c_EditReason_Other")
+            .SetDescription("Edit reason to OTHER saves and shows success toast");
     }
 
     [Test, TestCaseSource(nameof(EditExceptionTestCases))]
     [Category(TestCategories.Functional)]
-    [Ignore("Server-side bug: Edit action throws exception. Pending fix.")]
     public async Task TC_005_EditExceptionAndVerifySuccess(string newReason)
     {
         var user = ActorLibrary.GetActor("User");
 
-        // Given: User navigates to Magazine Exceptions with data
+        // Snapshot Entity1's current reason code so we can restore it in cleanup.
+        // (object) cast required: SqlParameter(string, 0) would resolve to SqlParameter(string, SqlDbType)
+        // since 0 converts implicitly to any enum — value would never be sent to SQL Server.
+        // EXCEPTION_REASON_CODE is nvarchar(20) in the DB — snapshot as string, restore as string.
+        // (object) cast on int constants is required: SqlParameter(string, 0) resolves to
+        // SqlParameter(string, SqlDbType) because 0 implicitly converts to any enum type.
+        var originalReasonCode = await user.Asks(new DbScalar<string?>(
+            MagazineExceptionsCleanup.GetExceptionReasonCode,
+            new SqlParameter("@MagazineId", (object)MagazineExceptionsCleanup.Entity1MagazineId),
+            new SqlParameter("@CompanyId",  (object)MagazineExceptionsCleanup.FrontlineCompanyId)));
+
+        RegisterCleanup(async () => await user.Performs(new DbExecute(
+            MagazineExceptionsCleanup.RestoreExceptionReason,
+            new SqlParameter("@ReasonCode", originalReasonCode ?? ""),
+            new SqlParameter("@MagazineId", (object)MagazineExceptionsCleanup.Entity1MagazineId),
+            new SqlParameter("@CompanyId",  (object)MagazineExceptionsCleanup.FrontlineCompanyId))));
+
+        // Given: User navigates to Magazine Exceptions and filters to Entity1 (RADIO TIMES)
         await user.Performs(new NavigateTo(AppConfiguration.BaseUrl));
         await user.Performs(new OpenMagazineExceptionsModule());
+        await user.Performs(new Fill(MagazineExceptionsPageTargets.MagIdFilterInput, MagazineExceptionsTestData.Entity1_MagId));
+        await user.ShouldEventuallyRead(MagazineExceptionsPageTargets.FirstRowIdCell, MagazineExceptionsTestData.Entity1_MagId);
 
-        // When: User clicks Edit button on first row
-        await user.Performs(new Click(MagazineExceptionsPageTargets.FirstRowEditButton));
+        // When: User opens the Edit dialog for that row
+        await user.Performs(new Click(MagazineExceptionsPageTargets.RowEditButton(MagazineExceptionsTestData.Entity1_MagId)));
+        await user.ShouldEventuallySee(MagazineExceptionsPageTargets.EditDialog);
 
-        // Then: Edit dialog opens
-        await user.ShouldSee(MagazineExceptionsPageTargets.EditDialog, "Edit dialog should be visible");
-
-        // When: User clears and updates the Exception Reason field
-        await user.Performs(new Fill(
-            MagazineExceptionsPageTargets.EditReasonField,
-            newReason));
+        // And: User opens the reason dropdown via its arrow icon and selects a new value
+        await user.Performs(new Click(MagazineExceptionsPageTargets.EditReasonDropdownIcon));
+        await user.Performs(new WaitForElement(MagazineExceptionsPageTargets.EjPopupItem(newReason)));
+        await user.Performs(new ClickFirst(MagazineExceptionsPageTargets.EjPopupItem(newReason)));
+        await user.Performs(new WaitForBlazorReady());
 
         // And: User clicks Save
         await user.Performs(new Click(MagazineExceptionsPageTargets.EditSaveButton));
 
-        // Then: Success toast appears with correct message
+        // Then: Success toast appears and reason cell reflects the change
         await user.ShouldEventuallySee(MagazineExceptionsPageTargets.Toast);
-        await user.ShouldHaveText(MagazineExceptionsPageTargets.ToastMessage,
-            MagazineExceptionsTestData.SuccessToastMessage,
-            $"Toast should contain '{MagazineExceptionsTestData.SuccessToastMessage}'");
+        await user.ShouldEventuallyRead(MagazineExceptionsPageTargets.FirstRowReasonCell, newReason);
     }
 
     #endregion
 
     [Test]
     [Category(TestCategories.Functional)]
-    [Ignore("Server-side bug: Edit action throws exception. Pending fix.")]
     public async Task TC_006_CancelEditDoesNotPersistChanges()
     {
         var user = ActorLibrary.GetActor("User");
@@ -288,14 +363,14 @@ public class MagazineExceptionsTests : ScreenplayTestBase
 
         // When: User clicks Edit on first row
         await user.Performs(new Click(MagazineExceptionsPageTargets.FirstRowEditButton));
+        await user.ShouldEventuallySee(MagazineExceptionsPageTargets.EditDialog);
 
-        // Then: Edit dialog opens
-        await user.ShouldSee(MagazineExceptionsPageTargets.EditDialog, "Edit dialog should be visible");
-
-        // When: User modifies the reason field
-        await user.Performs(new Fill(
-            MagazineExceptionsPageTargets.EditReasonField,
-            "Temporary Change"));
+        // And: User opens the reason dropdown via its arrow icon and selects a different value
+        var tempReason = MagazineExceptionsTestData.EditReason_ForCancel;
+        await user.Performs(new Click(MagazineExceptionsPageTargets.EditReasonDropdownIcon));
+        await user.Performs(new WaitForElement(MagazineExceptionsPageTargets.EjPopupItem(tempReason)));
+        await user.Performs(new ClickFirst(MagazineExceptionsPageTargets.EjPopupItem(tempReason)));
+        await user.Performs(new WaitForBlazorReady());
 
         // And: User clicks Cancel
         await user.Performs(new Click(MagazineExceptionsPageTargets.EditCancelButton));
@@ -411,7 +486,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         await user.Performs(new OpenMagazineExceptionsModule());
 
         // When: User filters by ID (Entity 1: ID=12, Name=RADIO TIMES)
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagIdFilterInput,
             MagazineExceptionsTestData.Entity1_MagId));
 
@@ -420,7 +495,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         var afterIdFilterCount = await user.Asks(new CountOf(MagazineExceptionsPageTargets.TableRows));
 
         // And: User additionally filters by name (same entity)
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagazineNameFilterInput,
             MagazineExceptionsTestData.Entity1_Name));
 
@@ -443,7 +518,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         await user.Performs(new OpenMagazineExceptionsModule());
 
         // When: User filters with a value that yields no results
-        await user.Performs(new FilterExceptionsBy(
+        await user.Performs(new Fill(
             MagazineExceptionsPageTargets.MagIdFilterInput,
             MagazineExceptionsTestData.NonExistentExceptionId));
 
@@ -615,6 +690,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
             case "company_and_magazine":
                 await OpenAddExceptionDialogWithCompany(user);
                 await user.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+                await user.Performs(new WaitForBlazorReady());
                 await user.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, MagazineExceptionsTestData.AddException_MagazineSearch));
                 var magItem = MagazineExceptionsPageTargets.MagSearchPopupItem(MagazineExceptionsTestData.AddException_MagazineSearch);
                 await user.Performs(new WaitForElement(magItem));
@@ -647,6 +723,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
 
         // When: User types a mid-string search term (Contains is default)
         await user.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+        await user.Performs(new WaitForBlazorReady());
         await user.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, MagazineExceptionsTestData.MagazineSearch_MidString));
 
         // Then: Autocomplete finds magazines containing the substring (JS-based — dialog overlay blocks Playwright Locator visibility)
@@ -677,15 +754,17 @@ public class MagazineExceptionsTests : ScreenplayTestBase
 
         // When: User types a mid-string term
         await user.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+        await user.Performs(new WaitForBlazorReady());
         await user.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, MagazineExceptionsTestData.MagazineSearch_MidString));
 
         // Then: No results — popup does not appear in Starts with mode for mid-string
-        await Task.Delay(2000);
+        await user.Performs(new WaitForBlazorReady());
         await user.ShouldNotSee("#MagSearch_popup.e-popup-open",
             "Autocomplete popup should not appear for mid-string in Starts with mode");
 
         // When: User types a prefix term
         await user.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+        await user.Performs(new WaitForBlazorReady());
         await user.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, MagazineExceptionsTestData.MagazineSearch_Prefix));
 
         // Then: Prefix matches the magazine
@@ -713,6 +792,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
 
         // When: User types a non-existent magazine name
         await user.Performs(new Click(MagazineExceptionsPageTargets.AddMagazineInput));
+        await user.Performs(new WaitForBlazorReady());
         await user.Performs(new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, MagazineExceptionsTestData.NonExistentMagazine));
 
         // Then: No results shown and Save remains disabled
@@ -809,6 +889,7 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         IPerformable[] steps =
         [
             new Click(MagazineExceptionsPageTargets.AddMagazineInput),
+            new WaitForBlazorReady(),
             new TypeText(MagazineExceptionsPageTargets.AddMagazineInput, MagazineExceptionsTestData.AddException_MagazineSearch),
             new WaitForElement(magazinePopupItem),
             new ClickFirst(magazinePopupItem),
@@ -824,7 +905,6 @@ public class MagazineExceptionsTests : ScreenplayTestBase
 
     [Test]
     [Category(TestCategories.EdgeCase)]
-    [Ignore("Server-side bug: Edit action throws exception. Pending fix.")]
     public async Task TC_013_SessionExpiryHandling()
     {
         var user = ActorLibrary.GetActor("User");
@@ -836,8 +916,8 @@ public class MagazineExceptionsTests : ScreenplayTestBase
         // When: User clicks Edit to open dialog
         await user.Performs(new Click(MagazineExceptionsPageTargets.FirstRowEditButton));
 
-        // Then: Edit dialog is open and interactive
-        await user.ShouldSee(MagazineExceptionsPageTargets.EditDialog, "Edit dialog should open");
-        await user.ShouldSee(MagazineExceptionsPageTargets.EditReasonField, "Reason field should be visible and interactive");
+        // Then: Edit dialog opens (Blazor async) and reason dropdown is visible and interactive
+        await user.ShouldEventuallySee(MagazineExceptionsPageTargets.EditDialog);
+        await user.ShouldEventuallySee(MagazineExceptionsPageTargets.EditReasonDropdownIcon);
     }
 }

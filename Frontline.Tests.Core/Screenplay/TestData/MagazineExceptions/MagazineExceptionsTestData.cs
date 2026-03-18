@@ -6,7 +6,6 @@ public static class MagazineExceptionsTestData
     // ── Page Headers ──────────────────────────────────────────────────────────
 
     public const string ExpectedHomePageTitle = "FLGroup Apps";
-    public const string ExpectedPageHeader = "Magazine Exceptions";
 
     // ── Test Entities (Verified to exist in database) ─────────────────────────
 
@@ -23,10 +22,7 @@ public static class MagazineExceptionsTestData
     public const string Entity2_Reason = "EMBARGO";
 
     // Entity 3
-    public const string Entity3_MagId = "10216";
-    public const string Entity3_Name = "X 360 EXPORT";
     public const string Entity3_Company = "SEYMOUR";
-    public const string Entity3_Reason = "NOT TO UK WHOLESALE";
 
     // ── Filter Test Data ──────────────────────────────────────────────────────
 
@@ -50,14 +46,13 @@ public static class MagazineExceptionsTestData
     public const string NonExistentCompanyName = "NonExistentCorp";
     public const string SpecialCharCompanyName = "Test & Co.";
 
-    // TC-005: Edit exception reason
-    public const string ValidNewReason = "UPDATED - Test Automation";
-    public const string EmptyReason = "";
-    public const string MaxLengthReason = "This is a very long exception reason that tests the maximum allowed length for the exception reason field in the system";
-    public const string SpecialCharReason = "Reason with special chars: !@#$%^&*()";
+    // TC-005: Edit exception reason — valid dropdown option values
+    public const string EditReason_A = "TIME SENSITIVE";
+    public const string EditReason_B = "EMBARGO";
+    public const string EditReason_C = "OTHER";
 
-    // TC-006: Original reason for cancel test (use real entity reason)
-    public const string OriginalReasonForCancelTest = Entity1_Reason;
+    // TC-006: Reason to select as a temporary change during cancel test
+    public const string EditReason_ForCancel = "TIME SENSITIVE";
 
     // ── Add Exception (TC-014+) ───────────────────────────────────────────────
 
@@ -73,10 +68,6 @@ public static class MagazineExceptionsTestData
     // TC-020: non-existent magazine
     public const string NonExistentMagazine = "ZZZNOMATCH";
 
-    // ── Toast/UI Messages ─────────────────────────────────────────────────────
-
-    public const string SuccessToastMessage = "Success";
-    public const string NoResultsEmptyStateMessage = "No records found";
 }
 
 
