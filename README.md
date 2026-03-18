@@ -1,8 +1,5 @@
 # FrontlineTests — Automated Regression Suite
-![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)
-![Playwright](https://img.shields.io/badge/Playwright-1.58-45ba4b?logo=playwright)
-![C#](https://img.shields.io/badge/C%23-13-239120?logo=csharp)
-![License](https://img.shields.io/badge/license-MIT-blue)
+![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet) ![Playwright](https://img.shields.io/badge/Playwright-1.58-45ba4b?logo=playwright) ![C#](https://img.shields.io/badge/C%23-13-239120?logo=csharp) ![License](https://img.shields.io/badge/license-MIT-blue)
 
 End-to-end regression suite for **FLGroup Frontline Applications** — a Blazor Server platform with Syncfusion EJ2 data grids.
 
@@ -25,19 +22,12 @@ End-to-end regression suite for **FLGroup Frontline Applications** — a Blazor 
 
 Tests are written using the **Screenplay pattern** — an actor-centric approach to BDD that keeps test bodies readable and free of Playwright/selector details.
 
-```mermaid
-graph TB
-    Test[Test Body] --> Task[Tasks<br/>Composite Flows]
-    Task --> Interaction[Interactions<br/>Atomic UI Operations]
-    Interaction --> Ability[Abilities<br/>Browser Lifecycle]
-    Interaction --> Ability[Abilities<br/>Database Interface]
-    Task --> Question[Questions<br/>Read State]
-   
-    style Test fill:#e1f5ff
-    style Task fill:#fff4e6
-    style Interaction fill:#f3e5f5
-    style Question fill:#e8f5e9
-    style Ability fill:#fce4ec
+```
+Test Body  (BusinessShells)   — domain language only; no selectors, no Playwright
+   └─ Tasks       (Core/Tasks)       composite user flows
+        └─ Interactions (Core/Interactions)  atomic Playwright operations
+             └─ Abilities   (Core/Abilities)  browser + database lifecycle
+Questions  (Core/Questions)   read app state; used in assertions
 ```
 
 **Example:**
@@ -71,7 +61,7 @@ await user.ShouldEventuallyRead(FirstRowIdCell, "12");
 ### 1. Clone the repository
 
 ```bash
-git clone git@github.com:SviatoslavS-ui/Screenplay_Automation.git
+git clone https://flgroup@dev.azure.com/flgroup/FLGroupTest/_git/FLGroupTest
 cd FrontlineTests
 ```
 
@@ -139,12 +129,12 @@ All settings are driven by environment variables with sensible local defaults. N
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `FRONTLINE_BASE_URL` | `https://dotnettest.flgroup.co.uk/` | Home portal URL |
-| `FRONTLINE_MAG_EXCEPTIONS_URL` | `https://dotnettest.flgroup.co.uk:10143/` | Magazine Exceptions app URL |
+| `FRONTLINE_BASE_URL` | `<your-home-portal-url>` | Home portal URL |
+| `FRONTLINE_MAG_EXCEPTIONS_URL` | `<your-app-url>` | Magazine Exceptions app URL |
 | `PLAYWRIGHT_HEADLESS` | `false` | Set `true` for CI or headless execution |
 | `TEST_ARTIFACTS_DIR` | `<bin>/../../../TestResults` | Output directory for traces and screenshots |
 | `FRONTLINE_SQL_ENABLED` | `true` | Set `false` to disable database cleanup |
-| `FRONTLINE_SQL_CONNECTION` | *(Windows Auth to flgsqlstdtest)* | SQL Server connection string for test data cleanup |
+| `FRONTLINE_SQL_CONNECTION` | *(Windows Auth — set via env var)* | SQL Server connection string for test data cleanup |
 
 ---
 
@@ -188,7 +178,7 @@ Before any test in a fixture runs, `[OneTimeSetUp]` verifies that the required r
 Tests that mutate pre-existing data snapshot the original value before the test and register a `RegisterCleanup` action that restores it in TearDown — regardless of test outcome. No record is ever permanently modified.
 
 ### 3. Create cleanup (TC_014, TC_015)
-Tests that create new records via the UI register a `RegisterCleanup` action that deletes the created records in TearDown by matching company, reason code, and the Windows identity of the test runner.
+Tests that create new records via the UI register a `RegisterCleanup` action that deletes the created records in TearDown by matching company, reason code, and the identity of the test runner.
 
 **Graceful degradation:** If the database is unreachable (e.g. cloud CI agents without network access), a warning is logged and tests run normally — cleanup and seeding are simply skipped. Set `FRONTLINE_SQL_ENABLED=false` to skip the connection attempt entirely.
 
@@ -206,7 +196,7 @@ trigger:
       - feature/*
 
 pool:
-  name: 'SelfHosted'  # Agent on the domain with access to flgsqlstdtest
+  name: 'SelfHosted'  # Domain-joined agent with DB access
 
 steps:
   - task: UseDotNet@2
